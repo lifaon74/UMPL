@@ -588,6 +588,7 @@ Parser.prototype.parse = function(string, callback) {
 
 
 var fileName = "test.cpp.adv";
+var fileName = "recursive.adv";
 
 var parser = new Parser("compiled/");
 parser.parseFile(fileName, function(error, code) {

@@ -3,9 +3,11 @@ This project brings you a new way of developping. Sometimes it appends than deve
 
 Another problem appends sometimes when we want to check if others developpers are not injecting wrong variables (types or value).  For example, we could do in javascript :
 
+```
     function parseString(string) {
 		if(typeof string != "string") {
 			throw new Error("You must pass a string");
 		}
 		// continue with some code here
 	}
+```

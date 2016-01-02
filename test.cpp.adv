@@ -1,0 +1,46 @@
+#include <SPI.h>
+
+#define OUT_PIN 16
+#define SS_PIN 0
+
+<%%
+	function sendSPI(byte) {
+		$buffer.write(`
+			digitalWrite(SS_PIN, LOW);
+			SPI.transfer(` + byte + `);
+			digitalWrite(SS_PIN, HIGH);
+		`);
+	}
+	
+	<%%
+		$buffer.write('sendSPI(14);');
+	%%>
+	
+%%>
+
+
+/*extern "C" {
+#include "c_types.h"
+#include "ets_sys.h"
+#include "os_type.h"
+#include "osapi.h"
+#include "spi_flash.h"
+}*/
+
+
+void setup() {
+	Serial.begin(250000);
+	pinMode(SS_PIN, OUTPUT);
+	
+	SPI.begin();
+	delay(500);
+	Serial.println("\nready");
+}
+
+void loop() {
+
+	for(uint16_t i = 0; i < 8; i++) {
+		<%% sendSPI(3); %%>
+		delay(500);
+	}
+}

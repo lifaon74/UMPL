@@ -1,13 +1,9 @@
-ab
-
 <%
+var f = function () {
 	$buffer.write(
-		"test"
+		"<\%\n" +
+			"var f = " + f.toString() + ";f();" +
+		"\n%\>"
 	);
+};f();
 %>
-
-cd
-
-<%#
-
-ef

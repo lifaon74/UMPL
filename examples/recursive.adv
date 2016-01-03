@@ -1,9 +1,9 @@
-<%%
-(function() {
+<%
+var f = function () {
 	$buffer.write(
-		"<%ESC%%" +
-			"$buffer.write(\"(" + this.toString() + ")();\");" +
-		"%%ESC%>"
+		"<\%\n" +
+			"var f = " + f.toString() + ";f();" +
+		"\n%\>"
 	);
-})();
-%%>
+};f();
+%>

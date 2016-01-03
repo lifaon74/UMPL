@@ -486,12 +486,11 @@ Parser.prototype.parse = function(string, callback) {
 				var start	= lastIndex;
 				var end		= token.start;
 				var string	= tokenizedString.visibilityString.string.slice(start, end);
-				string = (new RegExp(RegExp.quote("<%#"), "g")).replace(string, "<%");
-				string = (new RegExp(RegExp.quote("#%>"), "g")).replace(string, "%>");
-
 				code += self._bufferWrite(string);
 				
 				var intructions = tokenizedString.visibilityString.string.slice(token.match.start.position.end, token.match.end.position.start);
+				intructions = (new RegExp(RegExp.quote(self.openTag + "#"), "g")).replace(intructions, self.openTag);
+				intructions = (new RegExp(RegExp.quote("#" + self.closeTag), "g")).replace(intructions, self.closeTag);
 				
 				if(token.match.start.tagSettings.directWrite) {
 					code += self._bufferWrite(intructions, true);
@@ -659,6 +658,10 @@ Parser.prototype.parse = function(string, callback) {
 	};
 	
 	Parser.prototype._bufferWrite = function(string, rawCode) {
+		if(string == "") {
+			return "";
+		}
+		
 		if(typeof rawCode != "boolean") {
 			var rawCode = false;
 		}
@@ -688,10 +691,9 @@ Buffer.prototype.write = function(string) {
 };
 
 
-var fileName = "test.cpp.adv";
-var fileName = "recursive.adv";
-var fileName = "examples/basic.adv";
-
+//var fileName = "examples/test.cpp.adv";
+var fileName = "examples/recursive.adv";
+//var fileName = "examples/basic.adv";
 
 var parser = new Parser();
 parser.parseFile(fileName, function(error, code) {
@@ -703,7 +705,7 @@ parser.parseFile(fileName, function(error, code) {
 	fs.writeFile(newFileName, code, 'utf8', function() {
 		console.log(newFileName + ' parsed with success');
 		
-		var newFileName = "compiled/" + "out_comp" + ".js";
+		newFileName = "compiled/" + "out_comp" + ".js";
 		fs.writeFile(newFileName, parser.execute(code).buffer, 'utf8', function() {
 			console.log(newFileName + ' compiled with success');
 		});

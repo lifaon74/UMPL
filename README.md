@@ -1,10 +1,10 @@
 ##Universal Meta Programming Language (UMPL)##
 This project brings you a new way of developping, by adding tags to any languages and doing some preprocessing. This way it's possible to strongly optimize program, and even create self-programming software. This project is inspired from PHP and ASP.NET, but go further.
 
-*current version : **0.1.0*** (alpha)
+*current version :* **0.1.0** (alpha)
 
 ###The problem :
-Sometimes it appends than developpers would preffer to preprocess some code. A perfect example, is C and its derivatives : we often use macro because we need to adapt some code for a specific environment (could be a microcontroller, an OS, ...), or maybe to implement some function to generate repetitive code. But we quickly reach the limits of macros : no loops, basic functions, etc.
+Sometimes it appends than developpers would prefer to preprocess some code. A perfect example, is C and its derivatives : we often use macro because we need to adapt some code for a specific environment (could be a microcontroller, an OS, ...), or maybe to implement some function to generate repetitive code. But we quickly reach the limits of macros : no loops, basic functions, etc.
 
 Moreover, sometimes we want to check if others developpers are not injecting wrong variables (types or value).  For example, we could do in javascript :
 
@@ -17,14 +17,14 @@ function parseString(string) {
 	// continue with some code here
 }
 ```
-This is a really simple example where we're checking is a string is passed instead of something else. This code, will then be loaded and executed many times by different clients. Exept that for the client, it's a waste of computing time, because it could have been checked before by preprocessing.
+This is a really simple example where we're checking if a string is passed instead of something else. This code, will then be loaded and executed many times by different clients. Exept that for the client, it's a waste of computing time, because it could have been checked before by preprocessing.
 
 In short, in all these examples, as developers, we would like sometimes be able to create some functions which will automatically generate some code for us. All of this is possible with UMPL.
 
 ###Syntax :
 UMPL works with every language. It's an overlay which add tags. These tags permit to execute **javascript** code at diffrents layers, and so we are able to generate code for sublevels and do a lot of preprocessing for strong optimization.
 
-Let's assume we have a relay dumb C++ compiler, which doesn't optimize any code. Writing ```int i = 1 + 2; ``` will result in an addition executed everytime. With UMPL we could do this :
+Let's assume we have a realy dumb C++ compiler, which doesn't optimize any code. Writing ```int i = 1 + 2; ``` will result in an addition executed everytime. With UMPL we could do this :
 ```
 <%%
 	function plus(a, b) {
@@ -57,7 +57,9 @@ Of course this is a really simple example, just showing how UMPL works, so this 
 
 ###Special tags :
 ```<%ESC%``` will be converted into ```<%``` => NOT IMPLEMENTED YET
+
 ```%ESC%>``` will be converted into ```%>``` => NOT IMPLEMENTED YET
+
 You can for example do :
 ```
 <%%

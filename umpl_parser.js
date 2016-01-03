@@ -41,26 +41,49 @@ String.tab = function(tab) {
 	for(var i = 0; i < tab; i++) { str += "\t"; }
 	return str
 };
-			
+
+String.toStandardPath = function(path, isFolder) {
+	var _path = (new RegExp('\\\\', 'g')).replace(path, '/');
+	if(isFolder) {
+		if(_path[_path.length - 1] != "/") {
+			_path += "/";
+		}
+	}
+	return _path;
+};
+
+
+String.parsePath = function(path, isFolder) {
+	path = String.toStandardPath(path, isFolder);
+	var reservedChars = "<>:\"/\\|?*";
+
+	var match = (new RegExp("^([a-zA-Z]\:/)([^" + RegExp.quote(reservedChars) + "]+/)*$", 'g')).matchAll(path);
+};	
+
 			
 String.prototype.escapeSpecialChars = function() {
 	return JSON.stringify(this);
 };
 
 String.prototype.elegantLineBreak = function() {
-	return (new RegExp("(\\\\r?\\\\n)((?:\\\\t)*)", "g")).replace(this, function(match) {
-		var eol = "\"\\\\n\"";
+	var str = (new RegExp("(\\\\r?\\\\n)((?:\\\\t)*)", "g")).replace(this, function(match) {
+		var eol = "\"\\n\"";
 		//var eol = "String.eol";
 		var tabs = (new RegExp("\\\\t", "g")).replace(match.variables[1], "\t");
 		//var tabs = "String.tab(" + (new RegExp("\\\\t", "g")).matchAll(match.variables[1]).length + ")";
 		
-		return "\" + " + eol + " + \n" + tabs +"+ \"" + match.variables[1] + "";
+		return "\" + " + eol + " + \n" + tabs + "\"" + match.variables[1] + "";
 	});
+	
+	//str = (new RegExp(RegExp.quote('""') + "([^\\+])\\+", "g")).replace(str, "");
+		
+	return str;
 };
 
 String.prototype.tab = function() {
 	return "\t" + ((new RegExp("(\r?\n)", "g")).replace(this, "$1\t"));
 };
+
 
 
 var Timer = function() {
@@ -424,6 +447,8 @@ debugger;*/
 
 var Parser = function(compiledDirectory) {
 	this.compiledDirectory = compiledDirectory;
+	this.openTag	= "<%";
+	this.closeTag	= "%>";
 };
 
 Parser.prototype.parseFile = function(fileName, callback) {
@@ -439,161 +464,250 @@ Parser.prototype.parseFile = function(fileName, callback) {
 };
 
 Parser.prototype.parse = function(string, callback) {
-		
-	var stringToParse = new VisibilityString(string);
-	var tokenizedString = new TokenizedString(stringToParse);
+	var self = this;
 	
-	while(match = (new RegExp('<\%ESC\%', 'g')).match(stringToParse)) {
-		stringToParse.setVisibility(match.position.start, match.position.end, VisibilityString.transparent);
-		tokenizedString.addToken(["esc_open_tag"], match.position.start, match.position.end);
-	}
+	
+	self._tokenize(string, function(stringToParse, tokenizedString) {
+		var tokens = self._getTokensOrdered(tokenizedString);
+		
+		var keys = Object.keys(tokens.auto);
+		if(keys.length == 0) {
+			console.log('everything compiled');
+		} else {
+			var max  = Math.max.apply(null, keys);
 
-	while(match = (new RegExp('\%ESC\%>', 'g')).match(stringToParse)) {
-		stringToParse.setVisibility(match.position.start, match.position.end, VisibilityString.transparent);
-		tokenizedString.addToken(["esc_close_tag"], match.position.start, match.position.end);
-	}
-	
-	
-	var reg = new RecursiveRegExp('<\%([^\%]*)\%', 'g', function(match) {
-		var matchContent = match.variables[0];
-		
-		if((new RegExp('^([0-9]+)$', 'g')).match(matchContent)) {
-			match.nesting = parseInt(matchContent);
-			return RegExp.quote('%%>');
-		}
-		
-		if((new RegExp('^$', 'g')).match(matchContent)) {
-			return RegExp.quote('%%>');
-		}
-		
-		throw { name: "invalid_tag", match: match, message: "invalid tag \"" + match.matchString + "\"" + indexToLineColumnString(stringToParse.string, match.position.start) };
-	}, 'g');
-	
-	var matches = reg.matchAll(stringToParse);
-	for(var i = 0; i < matches.length; i++) {
-		var match = matches[i];
-		
-		if(match.start === null) {
-			throw { name: "close_tag_without_open", match: match, message: "found close tag without previously opening it" + indexToLineColumnString(stringToParse.string, match.end.position.start) };
-		}
-		
-		if(match.end === null) {
-			throw { name: "open_tag_without_close", match: match, message: "found open tag without closing it" + indexToLineColumnString(stringToParse.string, match.start.position.start) };
-		}
-		
-		tokenizedString.addToken(["open_tag"], match.start.position.start, match.start.position.end);
-		tokenizedString.addToken(["close_tag"], match.end.position.start, match.end.position.end);
-		var token = tokenizedString.addToken(["tag"], match.start.position.start, match.end.position.end);
-		token.match = match;
-	}
-	
-	time_this(function(timer) {
-		tokenizedString.getChildrenRecursive();
-		timer.disp("tokenizedString.getChildrenRecursive :");
-	});
-	
-	//console.log(tokenizedString.rootToken.toString());
-	
-	var tagsByLevel = [];
-	var escapedTag = {
-		open: [],
-		close: []
-	};
-	
-	var computeNestingLevel = function(token, nesting) {
-		if(token.names.indexOf("tag") != -1) {		
-			if(typeof token.match.start.nesting != "undefined") {
-				nesting = token.match.start.nesting;
+			var code = "";
+			var lastIndex = 0;
+			
+			var currentLevelTags = tokens.auto[max];
+			for(var i = 0; i < currentLevelTags.length; i++) {
+				var token = currentLevelTags[i];
+				
+				var start	= lastIndex;
+				var end		= token.start;
+				var string	= tokenizedString.visibilityString.string.slice(start, end);
+				string = (new RegExp(RegExp.quote("<%#"), "g")).replace(string, "<%");
+				string = (new RegExp(RegExp.quote("#%>"), "g")).replace(string, "%>");
+
+				code += self._bufferWrite(string);
+				
+				var intructions = tokenizedString.visibilityString.string.slice(token.match.start.position.end, token.match.end.position.start);
+				
+				if(token.match.start.tagSettings.directWrite) {
+					code += self._bufferWrite(intructions, true);
+				} else {
+					code += intructions;
+				}
+				
+				lastIndex = token.end;
 			}
 			
-			if(typeof tagsByLevel[nesting] == "undefined") {
-				tagsByLevel[nesting] = [];
-			}
-			tagsByLevel[nesting].push(token);
-			nesting++;
-		}
-		
+			var start	= lastIndex;
+			var end		= tokenizedString.visibilityString.string.length;
+			var string	= tokenizedString.visibilityString.string.slice(start, end);
 
-		if(token.names.indexOf("esc_open_tag") != -1) {
-			escapedTag.open.push(token);
+			code += self._bufferWrite(string);
+			callback(null, code);
+		}
+	});
+	
+};
+
+	Parser.prototype._tokenize = function(string, callback) {
+		var self = this;
+		
+		var stringToParse = new VisibilityString(string);
+		var tokenizedString = new TokenizedString(stringToParse);
+		
+			/*
+				Tokenize escape tags
+			*/
+		while(match = (new RegExp(RegExp.quote(self.openTag + '#'), 'g')).match(stringToParse)) {
+			stringToParse.setVisibility(match.position.start, match.position.end, VisibilityString.transparent);
+			tokenizedString.addToken(["esc_open_tag"], match.position.start, match.position.end);
+		}
+
+		while(match = (new RegExp(RegExp.quote('#' + self.closeTag), 'g')).match(stringToParse)) {
+			stringToParse.setVisibility(match.position.start, match.position.end, VisibilityString.transparent);
+			tokenizedString.addToken(["esc_close_tag"], match.position.start, match.position.end);
 		}
 		
-		if(token.names.indexOf("esc_close_tag") != -1) {
-			escapedTag.close.push(token);
+		
+			/*
+				Tokenize others tags
+			*/
+		var reg = new RecursiveRegExp(self.openTag + '([^\\s]*)\\s', 'g', function(match) {
+			var matchContent = match.variables[0];
+			
+			var tagSettings = {};
+			var _match;
+			
+			if(_match = (new RegExp('^(?:(\\^)|(\\$)|(\\+\\d+))?(=)?$', 'g')).match(matchContent)) {
+				tagSettings.type = "execute";
+				
+				
+				if(_match.variables[0] !== null) { // begin of the code
+					tagSettings.level = "begin";
+				} else if(_match.variables[1] !== null) {
+					tagSettings.level = "end";
+				} else if(_match.variables[2] !== null) {
+					tagSettings.level = "auto";
+					tagSettings.nestingIncrement = parseInt(_match.variables[2]);
+				} else {
+					tagSettings.level = "auto";
+					tagSettings.nestingIncrement = 1;
+				}
+				
+				
+				tagSettings.directWrite = (_match.variables[3] !== null);
+			} else if((new RegExp('^\\!$', 'g')).match(matchContent)) { // <%!
+				tagSettings.type = "comment";			
+			} else {
+				throw { name: "invalid_tag", match: match, message: "invalid tag \"" + match.matchString + "\"" + indexToLineColumnString(stringToParse.string, match.position.start) };
+			}
+			
+			
+			match.tagSettings = tagSettings;
+			return RegExp.quote(self.closeTag);
+		}, 'g');
+		
+		var matches = reg.matchAll(stringToParse);
+		
+		for(var i = 0; i < matches.length; i++) {
+			var match = matches[i];
+			
+			if(match.start === null) {
+				throw { name: "close_tag_without_open", match: match, message: "found close tag without previously opening it" + indexToLineColumnString(stringToParse.string, match.end.position.start) };
+			}
+			
+			if(match.end === null) {
+				throw { name: "open_tag_without_close", match: match, message: "found open tag without closing it" + indexToLineColumnString(stringToParse.string, match.start.position.start) };
+			}
+			
+			tokenizedString.addToken(["open_tag"], match.start.position.start, match.start.position.end);
+			tokenizedString.addToken(["close_tag"], match.end.position.start, match.end.position.end);
+			var token = tokenizedString.addToken(["tag"], match.start.position.start, match.end.position.end);
+			token.match = match;
+		}
+		
+		time_this(function(timer) {
+			tokenizedString.getChildrenRecursive();
+			timer.disp("tokenizedString.getChildrenRecursive :");
+			
+			callback(stringToParse, tokenizedString);
+		});
+	
+	};
+	
+	Parser.prototype._getTokensOrdered = function(tokenizedString) {
+		var tokens = {
+			begin: [],
+			end: [],
+			auto: [],
+			esc_open: [],
+			esc_close: []
+		};
+	
+	
+		this._computeNestingLevel(tokenizedString.rootToken, 0, tokens);
+		
+		return tokens;
+	};
+	
+	Parser.prototype._computeNestingLevel = function(token, nesting, tokens) {
+		var self = this;
+		
+		if(token.names.indexOf("tag") != -1) {	
+			var tagSettings = token.match.start.tagSettings
+			switch(tagSettings.type) {
+				case "execute":
+					if(typeof nesting == "number") {
+						switch(tagSettings.level) {
+							case "auto":
+								nesting += tagSettings.nestingIncrement;
+								if(typeof tokens.auto[nesting] == "undefined") {
+									tokens.auto[nesting] = [];
+								}
+								
+								tokens.auto[nesting].push(token);
+							break;
+							
+							case "begin":
+							case "end":
+								nesting = tagSettings.level;
+							break;
+						}
+					} else {
+						throw { name: "nesting_into_special_tag", token: token, message: "You can't nest more tags into special tag like begin (^), end ($) or all (*) " + indexToLineColumnString(stringToParse.string, token.match.start.position.start) };
+					}
+				break;
+				case "comment":
+					return;
+				break;
+			}
+			
+	
+		} else if(token.names.indexOf("esc_open_tag") != -1) {
+			tokens.esc_open.push(token);
+		} else if(token.names.indexOf("esc_close_tag") != -1) {
+			tokens.esc_close.push(token);
 		}
 		
 		token.children.forEach(function(token) {
-			computeNestingLevel(token, nesting);
+			self._computeNestingLevel(token, nesting, tokens);
 		});
 	};
 	
-	computeNestingLevel(tokenizedString.rootToken, 0);
-
-	var keys = Object.keys(tagsByLevel);
-	if(keys.length == 0) {
-		console.log('everything compiled');
-	} else {
-		var max  = Math.max.apply(null, keys);
-
-		var code = "";
-		var $buffer = {
-			buffer: "",
-			write: function(string) {
-				this.buffer += string;
-			}
-		};
-		
-		var lastIndex = 0;
-		for(var i = 0; i < tagsByLevel[max].length; i++) {
-			var token = tagsByLevel[max][i];
-			
-			var start	= lastIndex;
-			var end		= token.start;
-			var string	= tokenizedString.visibilityString.string.slice(start, end);
-			string = (new RegExp(RegExp.quote("<%ESC%"), "g")).replace(string, "<%");
-			string = (new RegExp(RegExp.quote("%ESC%>"), "g")).replace(string, "%>");
-
-			code += "$buffer.write(" + string.escapeSpecialChars().elegantLineBreak() + ");\n";
-			code += tokenizedString.visibilityString.string.slice(token.match.start.position.end, token.match.end.position.start)
-			
-			lastIndex = token.end;
+	Parser.prototype._bufferWrite = function(string, rawCode) {
+		if(typeof rawCode != "boolean") {
+			var rawCode = false;
 		}
 		
-		var start	= lastIndex;
-		var end		= tokenizedString.visibilityString.string.length;
-		var string	= tokenizedString.visibilityString.string.slice(start, end);
+		if(!rawCode) {
+			string = "\n" + string.escapeSpecialChars().elegantLineBreak().tab() + "\n";
+		}
+		
+		return "\n$buffer.write(" + string + ");\n";
+	};
 
-		code += "$buffer.write(" + string.escapeSpecialChars().elegantLineBreak() + ");\n";
-		
-		//console.log(code);
-		//console.log("\n\n");
-		
-		
-		callback(null, code);
-		
-		
-		/*var f = new Function('$buffer', code);
-		f($buffer);
-		
-		level++;
-		var newFileName = fileName + level;
-		fs.writeFile(newFileName, $buffer.buffer, 'utf8', function() {
-			console.log(newFileName + ' compiled with success');
-			parseFile(newFileName, level);
-		});*/
-	}
 	
+Parser.prototype.execute = function(code) {
+	var $buffer = new Buffer();
+	(new Function('$buffer', code))($buffer);
+	return $buffer;
+};
 
+
+
+var Buffer = function() {
+	this.buffer = "";
+};
+
+Buffer.prototype.write = function(string) {
+	this.buffer += string;
 };
 
 
 var fileName = "test.cpp.adv";
 var fileName = "recursive.adv";
+var fileName = "examples/basic.adv";
 
-var parser = new Parser("compiled/");
+
+var parser = new Parser();
 parser.parseFile(fileName, function(error, code) {
-	var newFileName = parser.compiledDirectory + fileName + ".js";
+	if(error) {
+		throw error;
+	}
+
+	var newFileName = "compiled/" + "out" + ".js";
 	fs.writeFile(newFileName, code, 'utf8', function() {
-		console.log(newFileName + ' compiled with success');
+		console.log(newFileName + ' parsed with success');
+		
+		var newFileName = "compiled/" + "out_comp" + ".js";
+		fs.writeFile(newFileName, parser.execute(code).buffer, 'utf8', function() {
+			console.log(newFileName + ' compiled with success');
+		});
 	});
+	
+	
 });

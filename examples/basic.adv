@@ -1,0 +1,18 @@
+ab
+
+<%
+	$buffer.write(
+		"test"
+	);
+%>
+
+<%+2
+	$buffer.write(
+		"cd"
+	);
+	var str = "<%#";
+%>
+
+<%+2= str %>
+
+ef

@@ -87,7 +87,7 @@ String.prototype.tab = function() {
 
 
 var Timer = function() {
-	this.time = process.hrtime();	
+	this.clear();	
 };
 
 Timer.prototype.diff = function() {
@@ -98,6 +98,11 @@ Timer.prototype.diff = function() {
 Timer.prototype.disp = function(string) {
 	console.log(string + " " + (this.diff() / 1e6) + "ms");
 };
+
+Timer.prototype.clear = function() {
+	this.time = process.hrtime();	
+};
+
 
 var time_this = function(callback) {
 	callback(new Timer());
@@ -449,6 +454,42 @@ var Parser = function(compiledDirectory) {
 	this.compiledDirectory = compiledDirectory;
 	this.openTag	= "<%";
 	this.closeTag	= "%>";
+	
+	this.$core = {
+		loop: 0,
+		level: 0
+	};
+
+};
+
+Parser.prototype.compileFile = function(fileName, callback) {
+	var self = this;
+	
+	fs.readFile(fileName, function(err, data) {
+		if(err) {
+			return callback(err, null);
+		}
+		
+		callback(null, self.compile(data.toString()));
+	});
+};
+
+Parser.prototype.compile = function(string) {
+	var self = this;
+	
+	self.$core.loop = 0;
+	
+	var code;
+	
+	var timer = new Timer();
+	while(code = self.parse(string)) {
+		string = self.execute(code).buffer;
+		self.$core.loop++;
+		timer.disp("loop time :");
+		timer.clear();
+	}
+	
+	return string;
 };
 
 Parser.prototype.parseFile = function(fileName, callback) {
@@ -456,39 +497,216 @@ Parser.prototype.parseFile = function(fileName, callback) {
 	
 	fs.readFile(fileName, function(err, data) {
 		if(err) {
-			return callback(err);
+			return callback(err, null);
 		}
 		
-		self.parse(data.toString(), callback);
+		callback(null, self.parse(data.toString()));
 	});
 };
 
-Parser.prototype.parse = function(string, callback) {
+Parser.prototype.parse = function(string) {
 	var self = this;
 	
 	
-	self._tokenize(string, function(stringToParse, tokenizedString) {
-		var tokens = self._getTokensOrdered(tokenizedString);
-		
-		var keys = Object.keys(tokens.auto);
-		if(keys.length == 0) {
-			console.log('everything compiled');
-		} else {
-			var max  = Math.max.apply(null, keys);
+	var tokenizedString = self._tokenize(string);
+	
+	//console.log(tokenizedString.toTree().toString());
 
+	return self._parseTopLevel(tokenizedString);
+};
+
+	Parser.prototype._tokenize = function(string) {
+		var self = this;
+		
+		var tokenizedString = new TokenizedString(new VisibilityString(string));
+		
+		self._tokenizeEscapedTags(tokenizedString);
+		self._tokenizeRecursiveTags(tokenizedString);
+		
+		tokenizedString.getChildrenRecursive();
+		
+		return tokenizedString;
+	};
+	
+		Parser.prototype._tokenizeEscapedTags = function(tokenizedString) {
+			var self = this;
+			
+			while(match = (new RegExp(RegExp.quote(self.openTag + '#'), 'g')).match(tokenizedString.visibilityString)) {
+				tokenizedString.visibilityString.setVisibility(match.position.start, match.position.end, VisibilityString.transparent);
+				tokenizedString.addToken(["esc_open_tag"], match.position.start, match.position.end);
+			}
+
+			while(match = (new RegExp(RegExp.quote('#' + self.closeTag), 'g')).match(tokenizedString.visibilityString)) {
+				tokenizedString.visibilityString.setVisibility(match.position.start, match.position.end, VisibilityString.transparent);
+				tokenizedString.addToken(["esc_close_tag"], match.position.start, match.position.end);
+			}
+			
+			return tokenizedString;
+		};
+		
+		Parser.prototype._tokenizeRecursiveTags = function(tokenizedString) {
+			var self = this;
+			
+			var matches = (new RecursiveRegExp(self.openTag + '([^\\s]*)\\s', 'g', function(match) {
+				var matchContent = match.variables[0];
+				
+				var tagSettings = {};
+				var _match;
+				
+				
+				if((new RegExp('^\\!$', 'g')).match(matchContent)) { // <%!
+					tagSettings.type = "comment";			
+				} else {
+					tagSettings.type = "execute";
+					
+					if((new RegExp('=$', 'g')).match(matchContent)) {
+						tagSettings.directWrite = true;
+						matchContent = matchContent.slice(0, matchContent.length - 1);
+					} else {
+						tagSettings.directWrite = false;
+					}
+					
+					
+					if((new RegExp('^(\\^)|(BEGIN)$', 'g')).match(matchContent)) {
+						tagSettings.level = "begin";
+					} else if((new RegExp('^(\\$)|(END)$', 'g')).match(matchContent)) {
+						tagSettings.level = "end";
+					} else if((new RegExp('^(\\*)|(ALL)$', 'g')).match(matchContent)) {
+						tagSettings.level = "all";
+					} else if(_match = (new RegExp('^(\\+\\d+)?$', 'g')).match(matchContent)) {
+						tagSettings.level = "auto";
+						if(_match.variables[0] !== null) {
+							tagSettings.nestingIncrement = parseInt(_match.variables[0]);
+						} else {
+							tagSettings.nestingIncrement = 1;
+						}
+					} else {
+						throw { name: "invalid_tag", match: match, message: "invalid tag \"" + match.matchString + "\"" + indexToLineColumnString(tokenizedString.visibilityString.string, match.position.start) };
+					}
+				}
+				
+				match.tagSettings = tagSettings;
+				
+				return RegExp.quote(self.closeTag);
+				
+			}, 'g')).matchAll(tokenizedString.visibilityString);
+		
+			for(var i = 0; i < matches.length; i++) {
+				var match = matches[i];
+				
+				if(match.start === null) {
+					throw { name: "close_tag_without_open", match: match, message: "found close tag without previously opening it" + indexToLineColumnString(tokenizedString.visibilityString.string, match.end.position.start) };
+				}
+				
+				if(match.end === null) {
+					throw { name: "open_tag_without_close", match: match, message: "found open tag without closing it" + indexToLineColumnString(tokenizedString.visibilityString.string, match.start.position.start) };
+				}
+				
+				tokenizedString.addToken(["open_tag"], match.start.position.start, match.start.position.end);
+				tokenizedString.addToken(["close_tag"], match.end.position.start, match.end.position.end);
+				var token = tokenizedString.addToken(["tag"], match.start.position.start, match.end.position.end);
+				token.match = match;
+			}
+		
+			return tokenizedString;
+		};
+	
+	
+	Parser.prototype._parseTopLevel = function(tokenizedString) {
+		var self = this;
+		
+		var sortedTokens = self._sortTokensByType(tokenizedString);
+		
+		if(sortedTokens.begin.length != 0) {
+			return self._parseTokens(tokenizedString.visibilityString, sortedTokens.begin);
+		} else {
+			var keys = Object.keys(sortedTokens.auto);
+				
+			if(keys.length == 0) {
+				return null;
+			} else {
+				var max  = Math.max.apply(null, keys);
+				return self._parseTokens(tokenizedString.visibilityString, sortedTokens.auto[max]);
+			}
+		}
+	};
+	
+		Parser.prototype._sortTokensByType = function(tokenizedString) {
+			var tokens = {
+				begin: [],
+				end: [],
+				all: [],
+				auto: [],
+				esc_open: [],
+				esc_close: []
+			};
+		
+		
+			this._computeNestingLevel(tokenizedString.rootToken, 0, tokens);
+			
+			return tokens;
+		};
+		
+			Parser.prototype._computeNestingLevel = function(token, nesting, tokens) {
+				var self = this;
+				
+				if(token.names.indexOf("tag") != -1) {	
+					var tagSettings = token.match.start.tagSettings
+					switch(tagSettings.type) {
+						case "execute":
+							if(typeof nesting == "number") {
+								switch(tagSettings.level) {
+									case "auto":
+										nesting += tagSettings.nestingIncrement;
+										if(typeof tokens.auto[nesting] == "undefined") {
+											tokens[tagSettings.level][nesting] = [];
+										}
+										
+										tokens[tagSettings.level][nesting].push(token);
+									break;
+									
+									case "begin":
+									case "end":
+									case "all":
+										tokens[tagSettings.level].push(token);
+										nesting = tagSettings.level;
+									break;
+								}
+							} else {
+								throw { name: "nesting_into_special_tag", token: token, message: "You can't nest more tags into special tag like begin (^), end ($) or all (*) " + indexToLineColumnString(stringToParse.string, token.match.start.position.start) };
+							}
+						break;
+						case "comment":
+							return;
+						break;
+					}
+					
+			
+				} else if(token.names.indexOf("esc_open_tag") != -1) {
+					tokens.esc_open.push(token);
+				} else if(token.names.indexOf("esc_close_tag") != -1) {
+					tokens.esc_close.push(token);
+				}
+				
+				token.children.forEach(function(token) {
+					self._computeNestingLevel(token, nesting, tokens);
+				});
+			};
+		
+		Parser.prototype._parseTokens = function(visibilityString, tokens) {
+			var self = this;
+			
 			var code = "";
 			var lastIndex = 0;
 			
-			var currentLevelTags = tokens.auto[max];
-			for(var i = 0; i < currentLevelTags.length; i++) {
-				var token = currentLevelTags[i];
+			for(var i = 0; i < tokens.length; i++) {
+				var token = tokens[i];
 				
-				var start	= lastIndex;
-				var end		= token.start;
-				var string	= tokenizedString.visibilityString.string.slice(start, end);
-				code += self._bufferWrite(string);
+				code += self._bufferWrite(
+					visibilityString.string.slice(lastIndex, token.start)
+				);
 				
-				var intructions = tokenizedString.visibilityString.string.slice(token.match.start.position.end, token.match.end.position.start);
+				var intructions = visibilityString.string.slice(token.match.start.position.end, token.match.end.position.start);
 				intructions = (new RegExp(RegExp.quote(self.openTag + "#"), "g")).replace(intructions, self.openTag);
 				intructions = (new RegExp(RegExp.quote("#" + self.closeTag), "g")).replace(intructions, self.closeTag);
 				
@@ -501,183 +719,36 @@ Parser.prototype.parse = function(string, callback) {
 				lastIndex = token.end;
 			}
 			
-			var start	= lastIndex;
-			var end		= tokenizedString.visibilityString.string.length;
-			var string	= tokenizedString.visibilityString.string.slice(start, end);
-
-			code += self._bufferWrite(string);
-			callback(null, code);
-		}
-	});
-	
-};
-
-	Parser.prototype._tokenize = function(string, callback) {
-		var self = this;
-		
-		var stringToParse = new VisibilityString(string);
-		var tokenizedString = new TokenizedString(stringToParse);
-		
-			/*
-				Tokenize escape tags
-			*/
-		while(match = (new RegExp(RegExp.quote(self.openTag + '#'), 'g')).match(stringToParse)) {
-			stringToParse.setVisibility(match.position.start, match.position.end, VisibilityString.transparent);
-			tokenizedString.addToken(["esc_open_tag"], match.position.start, match.position.end);
-		}
-
-		while(match = (new RegExp(RegExp.quote('#' + self.closeTag), 'g')).match(stringToParse)) {
-			stringToParse.setVisibility(match.position.start, match.position.end, VisibilityString.transparent);
-			tokenizedString.addToken(["esc_close_tag"], match.position.start, match.position.end);
-		}
-		
-		
-			/*
-				Tokenize others tags
-			*/
-		var reg = new RecursiveRegExp(self.openTag + '([^\\s]*)\\s', 'g', function(match) {
-			var matchContent = match.variables[0];
+			code += self._bufferWrite(
+				visibilityString.string.slice(lastIndex, visibilityString.string.length)
+			);
 			
-			var tagSettings = {};
-			var _match;
-			
-			if(_match = (new RegExp('^(?:(\\^)|(\\$)|(\\+\\d+))?(=)?$', 'g')).match(matchContent)) {
-				tagSettings.type = "execute";
-				
-				
-				if(_match.variables[0] !== null) { // begin of the code
-					tagSettings.level = "begin";
-				} else if(_match.variables[1] !== null) {
-					tagSettings.level = "end";
-				} else if(_match.variables[2] !== null) {
-					tagSettings.level = "auto";
-					tagSettings.nestingIncrement = parseInt(_match.variables[2]);
-				} else {
-					tagSettings.level = "auto";
-					tagSettings.nestingIncrement = 1;
+			return code;
+		};
+		
+			Parser.prototype._bufferWrite = function(string, rawCode) {
+				if(string == "") {
+					return "";
 				}
 				
+				if(typeof rawCode != "boolean") {
+					var rawCode = false;
+				}
 				
-				tagSettings.directWrite = (_match.variables[3] !== null);
-			} else if((new RegExp('^\\!$', 'g')).match(matchContent)) { // <%!
-				tagSettings.type = "comment";			
-			} else {
-				throw { name: "invalid_tag", match: match, message: "invalid tag \"" + match.matchString + "\"" + indexToLineColumnString(stringToParse.string, match.position.start) };
-			}
-			
-			
-			match.tagSettings = tagSettings;
-			return RegExp.quote(self.closeTag);
-		}, 'g');
-		
-		var matches = reg.matchAll(stringToParse);
-		
-		for(var i = 0; i < matches.length; i++) {
-			var match = matches[i];
-			
-			if(match.start === null) {
-				throw { name: "close_tag_without_open", match: match, message: "found close tag without previously opening it" + indexToLineColumnString(stringToParse.string, match.end.position.start) };
-			}
-			
-			if(match.end === null) {
-				throw { name: "open_tag_without_close", match: match, message: "found open tag without closing it" + indexToLineColumnString(stringToParse.string, match.start.position.start) };
-			}
-			
-			tokenizedString.addToken(["open_tag"], match.start.position.start, match.start.position.end);
-			tokenizedString.addToken(["close_tag"], match.end.position.start, match.end.position.end);
-			var token = tokenizedString.addToken(["tag"], match.start.position.start, match.end.position.end);
-			token.match = match;
-		}
-		
-		time_this(function(timer) {
-			tokenizedString.getChildrenRecursive();
-			timer.disp("tokenizedString.getChildrenRecursive :");
-			
-			callback(stringToParse, tokenizedString);
-		});
-	
-	};
-	
-	Parser.prototype._getTokensOrdered = function(tokenizedString) {
-		var tokens = {
-			begin: [],
-			end: [],
-			auto: [],
-			esc_open: [],
-			esc_close: []
-		};
-	
-	
-		this._computeNestingLevel(tokenizedString.rootToken, 0, tokens);
-		
-		return tokens;
-	};
-	
-	Parser.prototype._computeNestingLevel = function(token, nesting, tokens) {
-		var self = this;
-		
-		if(token.names.indexOf("tag") != -1) {	
-			var tagSettings = token.match.start.tagSettings
-			switch(tagSettings.type) {
-				case "execute":
-					if(typeof nesting == "number") {
-						switch(tagSettings.level) {
-							case "auto":
-								nesting += tagSettings.nestingIncrement;
-								if(typeof tokens.auto[nesting] == "undefined") {
-									tokens.auto[nesting] = [];
-								}
-								
-								tokens.auto[nesting].push(token);
-							break;
-							
-							case "begin":
-							case "end":
-								nesting = tagSettings.level;
-							break;
-						}
-					} else {
-						throw { name: "nesting_into_special_tag", token: token, message: "You can't nest more tags into special tag like begin (^), end ($) or all (*) " + indexToLineColumnString(stringToParse.string, token.match.start.position.start) };
-					}
-				break;
-				case "comment":
-					return;
-				break;
-			}
-			
-	
-		} else if(token.names.indexOf("esc_open_tag") != -1) {
-			tokens.esc_open.push(token);
-		} else if(token.names.indexOf("esc_close_tag") != -1) {
-			tokens.esc_close.push(token);
-		}
-		
-		token.children.forEach(function(token) {
-			self._computeNestingLevel(token, nesting, tokens);
-		});
-	};
-	
-	Parser.prototype._bufferWrite = function(string, rawCode) {
-		if(string == "") {
-			return "";
-		}
-		
-		if(typeof rawCode != "boolean") {
-			var rawCode = false;
-		}
-		
-		if(!rawCode) {
-			string = "\n" + string.escapeSpecialChars().elegantLineBreak().tab() + "\n";
-		}
-		
-		return "\n$buffer.write(" + string + ");\n";
-	};
+				if(!rawCode) {
+					string = "\n" + string.escapeSpecialChars().elegantLineBreak().tab() + "\n";
+				}
+				
+				return "\n$buffer.write(" + string + ");\n";
+			};
 
 	
 Parser.prototype.execute = function(code) {
-	var $buffer = new Buffer();
-	(new Function('$buffer', code))($buffer);
-	return $buffer;
+	var self = this;
+	self.$core.$buffer = new Buffer();
+	
+	(new Function('$core', '$buffer', code))(self.$core, self.$core.$buffer);
+	return self.$core.$buffer;
 };
 
 
@@ -692,23 +763,24 @@ Buffer.prototype.write = function(string) {
 
 
 //var fileName = "examples/test.cpp.adv";
-var fileName = "examples/recursive.adv";
-//var fileName = "examples/basic.adv";
+//var fileName = "examples/recursive.adv";
+var fileName = "examples/basic.adv";
 
 var parser = new Parser();
-parser.parseFile(fileName, function(error, code) {
+parser.compileFile(fileName, function(error, code) {
 	if(error) {
 		throw error;
 	}
 
 	var newFileName = "compiled/" + "out" + ".js";
 	fs.writeFile(newFileName, code, 'utf8', function() {
-		console.log(newFileName + ' parsed with success');
+		console.log(newFileName + ' compiled with success');
+		/*console.log(newFileName + ' parsed with success');
 		
 		newFileName = "compiled/" + "out_comp" + ".js";
 		fs.writeFile(newFileName, parser.execute(code).buffer, 'utf8', function() {
 			console.log(newFileName + ' compiled with success');
-		});
+		});*/
 	});
 	
 	

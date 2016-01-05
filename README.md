@@ -24,7 +24,8 @@ In short, in all these examples, as developers, we would like sometimes be able 
 ###Syntax :
 UMPL works with every language. It's an overlay which add tags. These tags permit to execute **javascript** code at diffrents layers, and so we are able to generate code for sublevels and do a lot of preprocessing for strong optimization.
 
-**<%** *some code* **%>** : everything beetween this tags will be preprocessed. It's possible to nest these tags : 
+####Nesting :
+**<%** *some code* **%>** : everything beetween these tags will be preprocessed. It's possible to nest these tags : 
 ```
 <%
 	some code executed on the second stage
@@ -50,8 +51,18 @@ Result in :
 Hello world !
 ```
 
+####Escape :
 **<%#** : escape the open tag. Will result in **<%**
 **#%>** : escape the closetag. Will result in **%>**
+
+####Control compilation:
+You can't add any tags inside of the following ones, because they're here to control compilation.
+
+**<%^** or  **<%BEGIN**: everything beetween these tags will be executed at the begining of the compilation, before any others instrutions. 
+
+**<%*** or  **<%ALL**: everything beetween these tags will be executed at each loop of the compilation. 
+
+**<%$** or  **<%END**: everything beetween these tags will be executed at the end of the compilation. 
 
 ###Simple examples :
 Let's assume we have a realy dumb C++ compiler, which doesn't optimize any code. Writing ```int i = 1 + 2; ``` will result in an addition executed everytime we launch the executable. With UMPL we could do this :
@@ -105,12 +116,7 @@ Of course this is a really simple example, just showing how UMPL works (this exa
 
 
 
-###Special tags :
-```<%ESC%``` will be converted into ```<%``` => NOT IMPLEMENTED YET
-
-```%ESC%>``` will be converted into ```%>``` => NOT IMPLEMENTED YET
-
-You can for example do :
+###More advanced examples :
 ```
 <%
 var f = function () {

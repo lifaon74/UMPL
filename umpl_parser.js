@@ -144,6 +144,75 @@ var createClass = function(_classFunction, _className) {
 };
 
 
+var BindClass = function() {
+	this._binds = [];
+};
+
+BindClass.prototype.bind = function(eventName, callback) {
+	var self = this;
+
+	if(!(callback instanceof Function)) { return; }
+				
+	if(typeof self._binds[eventName] == 'undefined') {
+		self._binds[eventName] = [];
+	}
+	
+	var bind = {
+		eventName	: eventName,
+		callback	: callback
+	};
+	
+	self._binds[eventName].push(bind);
+	
+	if(eventName != 'bind') {
+		self.trigger('bind', bind);
+	}
+	
+	return bind;
+};
+
+BindClass.prototype.unbind = function(eventName) {
+	var self = this;
+
+	if(typeof eventName == "string") {
+		if(typeof self._binds[eventName] != 'undefined') {
+			for(var i = 0; i < self._binds[eventName].length; i++) {
+				self.trigger('unbind', self._binds[eventName][i]);
+			}
+			delete self._binds[eventName];
+		}
+	} else { // passed a bind object
+		var bind = eventName;
+		for(var i = 0; i < self._binds[bind.eventName].length; i++) {
+			if(self._binds[bind.eventName][i] == bind) {
+				self.trigger('unbind', self._binds[bind.eventName][i]);
+				self._binds[bind.eventName].splice(i, 1);
+			}
+		}
+	}
+};
+
+BindClass.prototype.trigger = function(eventName, params) {
+	var self = this;
+	
+	if(typeof params == 'undefined') {
+		var params =  [];
+	}
+	
+	
+	if(typeof self._binds[eventName] != 'undefined') {
+		for(var i = 0; i < self._binds[eventName].length; i++) {
+			self._binds[eventName][i].callback.apply(this, params);
+		}
+	}
+	
+	if(self['on' + eventName] instanceof Function) {
+		self['on' + eventName].apply(this, params);
+	}
+};
+	
+	
+			
 var TokenTree = createClass(function(start, end, parent) {
 	LinkedNode.apply(this, []);
 	
@@ -209,20 +278,6 @@ var TokenizedString = function(string) {
 	}
 };
 
-	// not used
-TokenizedString.prototype.getTokenIndex = function(token) {
-	if(typeof this.tokens[token.name] == 'undefined') {
-		var tokens = this.tokens[token.name];
-		for(var i = 0; i < tokens.length; i++) {
-			if(tokens[i] === token) {
-				return [tokens, i];
-			}
-		}
-	}
-	
-	return null;
-};
-
 
 TokenizedString.prototype.addToken = function(name, start, end) {
 	var token		= new TokenTree(start, end, null);
@@ -268,7 +323,12 @@ TokenizedString.prototype.addToken = function(name, start, end) {
 			switch(_position) {
 				case 0: // crossing
 					token.addName(name);
-					throw { name: "crossing_tokens", tokens: [token, _token], message: "two tokens are crossing" };
+					throw {
+						code:		"crossing_tokens",
+						message:	"Found two tokens crossing",
+						positions:	[token.start, _token.end],
+						tokens: [token, _token]
+					};
 				break;
 				case 1: // inside
 					var _parentToken;
@@ -412,7 +472,135 @@ TokenizedString.prototype.toTree = function() {
 	
 	
 
-function indexToLineColumn(string, index) {
+
+Parser = function() {}
+
+var UMPLCompiler = createClass(function(settings) {
+	var self = this;
+	
+	BindClass.apply(self, []);
+
+	self.compiledFolder	= "compiled/";
+	self.openTag		= "<%";
+	self.closeTag		= "%>";
+	
+	self.settings = settings;
+	self.$core = {};
+	
+	self.bind('error', function(error, string, loop) {
+		var errorString = "";
+	
+		if(typeof error.type != "undefined") {
+			var extension = "txt";
+			
+			switch(error.type) {
+				case "parsing":
+					errorString += "[ERROR (COMPILATION)] ";
+					
+					if(typeof error.positions == "undefined") {
+						error.positions = [error.position];
+					}
+		
+					for(var i = 0; i < error.positions.length; i++) {
+						if(i > 0) { errorString += ", "; }
+						errorString += UMPLCompiler.indexToLineColumnString(string, error.positions[i]);
+					}
+			
+				break;
+				case "executing":
+					errorString	+= "[ERROR (EXECUTION)] ";
+					errorString	+= "( line : " + error.line + ", column : " + error.column + " )";
+					extension	= "js";
+				break;
+			}
+			
+			var debugFilePath = self.compiledFolder + "debug." + extension;
+			
+			errorString += " loop " + loop;
+			errorString += " : " + error.message;
+			errorString += "\noutput file : " + debugFilePath;
+			
+			console.log(errorString);
+			fs.writeFileSync(debugFilePath, string, 'utf8');
+			
+		} else {
+			errorString += "undetermined error"
+			console.log(errorString, error);
+		}
+		
+
+		
+		
+		
+	});
+	
+	
+	if(typeof self.settings.onerror != 'function') {
+		self.settings.onerror = function(error) {
+			throw error;
+		};
+	}
+	
+	if(typeof self.settings.inputFile == 'string') {
+		try {
+			self.settings.inputCode = fs.readFileSync(self.settings.inputFile, 'utf8');
+		} catch(e) {
+			self.settings.onerror({
+				code: "file_not_found",
+				message: "file " + self.settings.inputFile + " not found"
+			});
+		}
+	}
+		
+		
+	if(typeof self.settings.inputCode == 'string') {
+		self.$core.loop = 0;
+		
+		var code			= self.settings.inputCode;
+		var jsCode			= true;
+		var errorOccured	= false; 
+		
+		while(true) {
+			try {
+				jsCode = self.convertToJS(code);
+			} catch(error) {
+				error.type = "parsing";
+				self.trigger('error', [error, code, self.$core.loop]);
+				errorOccured = true;
+				break;
+			}
+			
+			if(jsCode === null) {
+				break;
+			} else {
+				try {
+					code = self.execute(jsCode).buffer;
+				} catch(error) {
+					error.type = "executing";
+					self.trigger('error', [error, jsCode, self.$core.loop]);
+					errorOccured = true;
+					break;
+				}
+			
+				self.$core.loop++
+			}
+		}
+		
+		if(!errorOccured) {
+			if(typeof self.settings.outputFile == 'string') {
+				fs.writeFileSync(self.settings.outputFile, code, 'utf8');
+			}
+		}
+	}
+	
+}, "UMPLCompiler").extend(BindClass);
+
+
+UMPLCompiler.compile = function($core) {
+	return new UMPLCompiler($core);
+};
+
+UMPLCompiler.indexToLineColumn = function(string, index) {
 	var line = 1;
 	var column = 1;
 	
@@ -427,95 +615,30 @@ function indexToLineColumn(string, index) {
 		column++;
 	}
 	
-	return { line: line, column: column };
-};
-
-function indexToLineColumnString(string, index) {
-	var position = indexToLineColumn(string, index);
-	return " at line " + position.line + ", column " + position.column;
-};
-
-
-
-/*var stringToParse = new VisibilityString("0123456789");
-var tokenizedString = new TokenizedString(stringToParse);
-tokenizedString.addToken(["b0"], 1, 2);
-//tokenizedString.addToken(["b1"], 1, 2);
-tokenizedString.addToken(["bc0"], 1, 3);
-tokenizedString.addToken(["d0"], 5, 6);
-tokenizedString.addToken(["abcde0"], 0, 8);
-//tokenizedString.addToken(["cross"], 1, 6);
-console.log(tokenizedString.toString());
-console.log(tokenizedString.getChildrenRecursive().toString());
-debugger;*/
-
-
-var Parser = function(compiledDirectory) {
-	this.compiledDirectory = compiledDirectory;
-	this.openTag	= "<%";
-	this.closeTag	= "%>";
-	
-	this.$core = {
-		loop: 0,
-		level: 0
+	return {
+		line	: line,
+		column	: column
 	};
-
 };
 
-Parser.prototype.compileFile = function(fileName, callback) {
-	var self = this;
-	
-	fs.readFile(fileName, function(err, data) {
-		if(err) {
-			return callback(err, null);
-		}
-		
-		callback(null, self.compile(data.toString()));
-	});
+UMPLCompiler.indexToLineColumnString = function(string, index) {
+	var position = UMPLCompiler.indexToLineColumn(string, index);
+	return "( line : " + position.line + ", column : " + position.column + " )";
 };
 
-Parser.prototype.compile = function(string) {
-	var self = this;
-	
-	self.$core.loop = 0;
-	
-	var code;
-	
-	var timer = new Timer();
-	while(code = self.parse(string)) {
-		string = self.execute(code).buffer;
-		self.$core.loop++;
-		timer.disp("loop time :");
-		timer.clear();
-	}
-	
-	return string;
-};
 
-Parser.prototype.parseFile = function(fileName, callback) {
-	var self = this;
-	
-	fs.readFile(fileName, function(err, data) {
-		if(err) {
-			return callback(err, null);
-		}
-		
-		callback(null, self.parse(data.toString()));
-	});
-};
 
-Parser.prototype.parse = function(string) {
+	// convert UMPL code into js executable code
+UMPLCompiler.prototype.convertToJS = function(string) {
 	var self = this;
-	
 	
 	var tokenizedString = self._tokenize(string);
-	
 	//console.log(tokenizedString.toTree().toString());
-
 	return self._parseTopLevel(tokenizedString);
 };
 
-	Parser.prototype._tokenize = function(string) {
+		// generate tokenizedTree from UMPL code
+	UMPLCompiler.prototype._tokenize = function(string) {
 		var self = this;
 		
 		var tokenizedString = new TokenizedString(new VisibilityString(string));
@@ -528,7 +651,7 @@ Parser.prototype.parse = function(string) {
 		return tokenizedString;
 	};
 	
-		Parser.prototype._tokenizeEscapedTags = function(tokenizedString) {
+		UMPLCompiler.prototype._tokenizeEscapedTags = function(tokenizedString) {
 			var self = this;
 			
 			while(match = (new RegExp(RegExp.quote(self.openTag + '#'), 'g')).match(tokenizedString.visibilityString)) {
@@ -544,20 +667,23 @@ Parser.prototype.parse = function(string) {
 			return tokenizedString;
 		};
 		
-		Parser.prototype._tokenizeRecursiveTags = function(tokenizedString) {
+		UMPLCompiler.prototype._tokenizeRecursiveTags = function(tokenizedString) {
 			var self = this;
 			
 			var matches = (new RecursiveRegExp(self.openTag + '([^\\s]*)\\s', 'g', function(match) {
 				var matchContent = match.variables[0];
 				
+				var endPattern = "";
 				var tagSettings = {};
 				var _match;
 				
 				
 				if((new RegExp('^\\!$', 'g')).match(matchContent)) { // <%!
-					tagSettings.type = "comment";			
+					tagSettings.type = "comment";
+					endPattern = "\\!";
 				} else {
 					tagSettings.type = "execute";
+					endPattern = "[^\\!]";
 					
 					if((new RegExp('=$', 'g')).match(matchContent)) {
 						tagSettings.directWrite = true;
@@ -566,28 +692,25 @@ Parser.prototype.parse = function(string) {
 						tagSettings.directWrite = false;
 					}
 					
-					
-					if((new RegExp('^(\\^)|(BEGIN)$', 'g')).match(matchContent)) {
-						tagSettings.level = "begin";
-					} else if((new RegExp('^(\\$)|(END)$', 'g')).match(matchContent)) {
-						tagSettings.level = "end";
-					} else if((new RegExp('^(\\*)|(ALL)$', 'g')).match(matchContent)) {
-						tagSettings.level = "all";
-					} else if(_match = (new RegExp('^(\\+\\d+)?$', 'g')).match(matchContent)) {
-						tagSettings.level = "auto";
+					if(_match = (new RegExp('^(\\+\\d+)?$', 'g')).match(matchContent)) {
 						if(_match.variables[0] !== null) {
 							tagSettings.nestingIncrement = parseInt(_match.variables[0]);
 						} else {
 							tagSettings.nestingIncrement = 1;
 						}
 					} else {
-						throw { name: "invalid_tag", match: match, message: "invalid tag \"" + match.matchString + "\"" + indexToLineColumnString(tokenizedString.visibilityString.string, match.position.start) };
+						throw {
+							code:		"invalid_umpl_tag",
+							message:	"invalid UMPL tag \"" + match.matchString + "\"",
+							position:	match.position.start,
+							match: match
+						};
 					}
 				}
 				
 				match.tagSettings = tagSettings;
 				
-				return RegExp.quote(self.closeTag);
+				return endPattern + RegExp.quote(self.closeTag);
 				
 			}, 'g')).matchAll(tokenizedString.visibilityString);
 		
@@ -595,11 +718,21 @@ Parser.prototype.parse = function(string) {
 				var match = matches[i];
 				
 				if(match.start === null) {
-					throw { name: "close_tag_without_open", match: match, message: "found close tag without previously opening it" + indexToLineColumnString(tokenizedString.visibilityString.string, match.end.position.start) };
+					throw {
+						code:		"close_umpl_tag_without_open",
+						message:	"Found close tag without any corresponding open tag",
+						position:	match.end.position.start,
+						match: match
+					};	
 				}
 				
 				if(match.end === null) {
-					throw { name: "open_tag_without_close", match: match, message: "found open tag without closing it" + indexToLineColumnString(tokenizedString.visibilityString.string, match.start.position.start) };
+					throw {
+						code:		"open_umpl_tag_without_close",
+						message:	"Found open tag without any corresponding close tag",
+						position:	match.start.position.start,
+						match: match
+					};
 				}
 				
 				tokenizedString.addToken(["open_tag"], match.start.position.start, match.start.position.end);
@@ -612,31 +745,25 @@ Parser.prototype.parse = function(string) {
 		};
 	
 	
-	Parser.prototype._parseTopLevel = function(tokenizedString) {
+	
+	UMPLCompiler.prototype._parseTopLevel = function(tokenizedString) {
 		var self = this;
 		
 		var sortedTokens = self._sortTokensByType(tokenizedString);
 		
-		if(sortedTokens.begin.length != 0) {
-			return self._parseTokens(tokenizedString.visibilityString, sortedTokens.begin);
+		var keys = Object.keys(sortedTokens.execute);
+			
+		if(keys.length == 0) {
+			return null;
 		} else {
-			var keys = Object.keys(sortedTokens.auto);
-				
-			if(keys.length == 0) {
-				return null;
-			} else {
-				var max  = Math.max.apply(null, keys);
-				return self._parseTokens(tokenizedString.visibilityString, sortedTokens.auto[max]);
-			}
+			var max  = Math.max.apply(null, keys);
+			return self._parseTokens(tokenizedString.visibilityString, sortedTokens.execute[max]);
 		}
 	};
 	
-		Parser.prototype._sortTokensByType = function(tokenizedString) {
+		UMPLCompiler.prototype._sortTokensByType = function(tokenizedString) {
 			var tokens = {
-				begin: [],
-				end: [],
-				all: [],
-				auto: [],
+				execute: [],
 				esc_open: [],
 				esc_close: []
 			};
@@ -647,34 +774,19 @@ Parser.prototype.parse = function(string) {
 			return tokens;
 		};
 		
-			Parser.prototype._computeNestingLevel = function(token, nesting, tokens) {
+			UMPLCompiler.prototype._computeNestingLevel = function(token, nesting, tokens) {
 				var self = this;
 				
 				if(token.names.indexOf("tag") != -1) {	
 					var tagSettings = token.match.start.tagSettings
 					switch(tagSettings.type) {
 						case "execute":
-							if(typeof nesting == "number") {
-								switch(tagSettings.level) {
-									case "auto":
-										nesting += tagSettings.nestingIncrement;
-										if(typeof tokens.auto[nesting] == "undefined") {
-											tokens[tagSettings.level][nesting] = [];
-										}
-										
-										tokens[tagSettings.level][nesting].push(token);
-									break;
-									
-									case "begin":
-									case "end":
-									case "all":
-										tokens[tagSettings.level].push(token);
-										nesting = tagSettings.level;
-									break;
-								}
-							} else {
-								throw { name: "nesting_into_special_tag", token: token, message: "You can't nest more tags into special tag like begin (^), end ($) or all (*) " + indexToLineColumnString(stringToParse.string, token.match.start.position.start) };
+							nesting += tagSettings.nestingIncrement;
+							if(typeof tokens.execute[nesting] == "undefined") {
+								tokens.execute[nesting] = [];
 							}
+							
+							tokens.execute[nesting].push(token);
 						break;
 						case "comment":
 							return;
@@ -693,7 +805,7 @@ Parser.prototype.parse = function(string) {
 				});
 			};
 		
-		Parser.prototype._parseTokens = function(visibilityString, tokens) {
+		UMPLCompiler.prototype._parseTokens = function(visibilityString, tokens) {
 			var self = this;
 			
 			var code = "";
@@ -726,7 +838,7 @@ Parser.prototype.parse = function(string) {
 			return code;
 		};
 		
-			Parser.prototype._bufferWrite = function(string, rawCode) {
+			UMPLCompiler.prototype._bufferWrite = function(string, rawCode) {
 				if(string == "") {
 					return "";
 				}
@@ -743,11 +855,26 @@ Parser.prototype.parse = function(string) {
 			};
 
 	
-Parser.prototype.execute = function(code) {
+UMPLCompiler.prototype.execute = function(code) {
 	var self = this;
 	self.$core.$buffer = new Buffer();
 	
-	(new Function('$core', '$buffer', code))(self.$core, self.$core.$buffer);
+	try {
+		(new Function('$core', '$buffer', code))(self.$core, self.$core.$buffer);
+	} catch(error) {
+		var matches			= (new RegExp('at eval (.*)\\)\\n', 'g')).matchAll(error.stack);
+		var match			= matches[matches.length - 1];
+		var matchLineColumn	= (new RegExp('(\\d+)\\:(\\d+)$', 'g')).match(match.variables[0]);
+		
+		throw {
+			originalError: error,
+			line: parseInt(matchLineColumn.variables[0]),
+			column: parseInt(matchLineColumn.variables[1]),
+			stack: error.stack.slice(0, match.position.end),
+			message: error.message
+		};
+	}
+	
 	return self.$core.$buffer;
 };
 
@@ -766,8 +893,12 @@ Buffer.prototype.write = function(string) {
 //var fileName = "examples/recursive.adv";
 var fileName = "examples/basic.adv";
 
-var parser = new Parser();
-parser.compileFile(fileName, function(error, code) {
+var compiler = UMPLCompiler.compile({
+	inputFile: fileName,
+	outputFile: "compiled.txt"
+});
+
+/*parser.compileFile(fileName, function(error, code) {
 	if(error) {
 		throw error;
 	}
@@ -775,13 +906,7 @@ parser.compileFile(fileName, function(error, code) {
 	var newFileName = "compiled/" + "out" + ".js";
 	fs.writeFile(newFileName, code, 'utf8', function() {
 		console.log(newFileName + ' compiled with success');
-		/*console.log(newFileName + ' parsed with success');
-		
-		newFileName = "compiled/" + "out_comp" + ".js";
-		fs.writeFile(newFileName, parser.execute(code).buffer, 'utf8', function() {
-			console.log(newFileName + ' compiled with success');
-		});*/
 	});
 	
 	
-});
+});*/

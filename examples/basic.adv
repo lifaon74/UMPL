@@ -1,11 +1,12 @@
 
-begin loop value is : <%BEGIN= $core.loop %>
+begin loop value is : <%+50= $core.loop %>
 
 <%+2
 	var str_level_2 = 'some text in string executed at loop ' + $core.loop;
 %>
+
 <%
-	
+
 	$buffer.write(
 		'<%= str_level_2 %>' + ', and writed at loop ' + $core.loop
 	);

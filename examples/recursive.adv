@@ -1,7 +1,7 @@
 <%
 var f = function () {
 	if($compiler.loop >= 1000) {
-		throw { message: "end of prog - " + $compiler.jsCode }
+		throw { message: "end of prog after " + $compiler.loop + " loops. output code :\n\n" + $compiler.jsCode }
 	}
 	
 	$buffer.write(

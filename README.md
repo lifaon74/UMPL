@@ -1,47 +1,31 @@
 ##Universal Meta Programming Language (UMPL)##
-This project enable powerfull code preprocessing for any languages simply by adding a set a tags. This way it's possible to **strongly optimize program**, and even create self-programming software. This project is inspired from PHP and ASP.NET, but go further.
+This project enable powerfull code preprocessing for any languages simply by adding a set a tags. This way it's possible to **strongly optimize program**, and even create **self-programming software**. This project is inspired from PHP and ASP.NET, but go further.
 
-*current version :* **0.1.0** (work in progress)
-
-###The problem :
-Sometimes it appends than developpers would prefer to preprocess some code. A perfect example, is C and its derivatives (C++, C#,...) : we often use macro because we need to adapt some code to a specific environment (could be a microcontroller, an OS, a specific processor, ...), or occasionally to implement some function to generate repetitive code. But we quickly reach the limits of macros : no loops, realy basic instructions, etc.
-
-Moreover, often we need to check if other developpers are using correctly our methods/functions.  For example, to check is a variable type is correct, we could do this in javascript :
-
-```
-function toUpperCase()(string) {
-		// this simple test will be executed client-side, but could be preprocessed
-	if(typeof string != "string") {
-		throw new Error("You must pass a string");
-	}
-	return string.toUpperCase();
-}
-```
-This is a really simple example where we're checking if a string is passed instead of something else, and then we uppercase it. Now, imagine this code is a part of a bigger library you created and you puted online . It will probably be used by differents developpers on their websites and never edited. Now what will append : this code, will be downloaded and executed many times by different clients, and maybe this function will be called millions of times. However, the variable type could have been checked once for all by a compiler (meaning preprocessing) rather than asking the customer to perform this task each time...
-
-In short, in all these examples, as developers, we would like sometimes be able to create some preprocessing functions which will automatically generate some code for us. All of this is possible and easy to setup with UMPL.
+*current version :* **0.9.0** (work in progress, functional)
 
 ###Syntax :
-UMPL works with every language. It's an overlay which add tags. These tags permit to execute **javascript** code at diffrents layers, and so we are able to generate code for sublevels and do a lot of preprocessing for strong optimization.
+UMPL works with *every language*. It's an overlay which add tags and preprocess everything bettween them. Inside of these tags, you write **javascript (node.js)** code.
+The force come from the fact that you can add tags *inside* of others tags : so it's possible to generate code for sublevels and do a lot of preprocessing for strong optimization. The compiler will then start with the higher level (depending of tag nesting), and execute as many loops as necessary until nothing remains to be compiled.
 
 ####Nesting :
-**<%** *some code* **%>** : everything beetween these tags will be preprocessed. It's possible to nest these tags : 
+- ```<% some javascript code %>``` : everything beetween these tags will be preprocessed. It's possible to nest these tags : 
 ```
 <%
-	some code executed on the second stage
-	<% some code executed on the first stage %>
+	some code executed on the second loop
+	<% some code executed on the first loop %>
 %>
 ```
 
-**<%+N** (where N is a number) : increment code execution level by N. 
+- ```<%+N``` (where N is a number) : increment nesting level by N. 
 ```
 <%
-	some code executed on the second stage, because it's execution level is 1
-	<%+2 some code executed on the first stage, because it's execution level is 1 + 2 = 3 %>
+	some code executed on the third loop, because it's nesting level is 1
+	<%+2 some code executed on the first loop, because it's nesting level is 1 + 2 = 3 %>
 %>
+<%+2 some code executed on the second loop, because it's nesting level is 2 %>
 ```
 
-**<%=** or **<%+N=** : execute following code and write the result.
+- ```=``` :  adding equal sign after a tag will do a direct write.
 ```
 <% var i = "Hello world !"; %>
 <%= i %>
@@ -51,75 +35,47 @@ Result in :
 Hello world !
 ```
 
+
+**IMPORTANT** : you must have a white space after ```<%``` and before ```%>```
+
 ####Escape :
-**<%#** : escape the open tag. Will result in **<%**
-**#%>** : escape the closetag. Will result in **%>**
+- ```<%#``` : escape the open tag. Will result in ```<%```
+- ```#%>``` : escape the closetag. Will result in ```%>```
 
-####Control compilation:
-You can't add any tags inside of the following ones, because they're here to control compilation.
-
-**<%^** or  **<%BEGIN**: everything beetween these tags will be executed at the begining of the compilation, before any others instrutions. 
-
-**<%*** or  **<%ALL**: everything beetween these tags will be executed at each loop of the compilation. 
-
-**<%$** or  **<%END**: everything beetween these tags will be executed at the end of the compilation. 
-
-###Simple examples :
-Let's assume we have a realy dumb C++ compiler, which doesn't optimize any code. Writing ```int i = 1 + 2; ``` will result in an addition executed everytime we launch the executable. With UMPL we could do this :
+####Write some data :
+- ```$buffer.write(data)``` :  everything written into the buffer, will be print into the sublevel.
 ```
-<%
-	function plus(a, b) {
-		if(typeof a == "number" && typeof b == "number") {
-			return a + b;
-		} else {
-			return a + " + " + b;
-		}
-	}
-%>
+<% $buffer.write("Hello world !"); %>
+```
+Result in :
+```
+Hello world !
+```
 
-int i = 1;
-<% var i = 1; %>
-cout << <%= plus(i, 2) %> << eol;
-cout << <%= plus('i', 2) %> << eol;
-```
-The output will be :
-```
-int i = 1;
-cout << 3 << eol; 
-cout << i + 2 << eol;
-```
-So how to devellop ?
+If necessary, you can read or modify the buffer, by acessing to raw output with ```$buffer.buffer```.
 
-You can code normally with your favorite language, but everytime you'll need to do some preprocessing, you can add the tags ```<% some code %>```. Everything between these tags will be exected before the compiler, and will be able to generate some code if needed. This is the same as PHP for example. Nothing exeptional you would say, but the true strength comes in the fact that we can nest these tags.
+####Control process :
+```$compiler``` will give you a set of methods to control the execution of the preprocessing compilation.
 
-```
-int i = <%
-	var i = <%= 1 + 2 %>;
-	$buffer.write(i + 1);
-%>;
-```
-First stage :
-```
-int i = <%
-	var i = 3;
-	$buffer.write(i + 1);
-%>;
-```
-Second and final stage :
-```
-int i = 4;
-```
-First of all the parser will search the higher level to execute. Here it's  ```<%= 1 + 2 %>```. It will execute the code and output the result into the sublevel (see first stage). Next, the parser will redo the exact thing : find the higher level, execute the code and we will get the second stage as result. Then there'se nothing more to parse, so the parser stop its job.
-
-Of course this is a really simple example, just showing how UMPL works (this example would be realy useless into a real program). But you can really easily create self programming application with this method.
+- ```$compiler.loop``` : tells you on which loop you are.
+- ```$compiler.level``` : tells you on which level you are (according to tag nesting).
+- ```$compiler.bind(eventName, callback)``` : listen for an incomming event.
+	- event: 'compile_error', argument: error : triggered when an error occurs. **error** gives you mores informations about the problem.
+	-  event: 'parse_loop', argument: jsCode: triggered every loop, just after the conversion from UMPL file into an executable javascript file. **jsCode** gives you the raw javacript code.
+	- event: 'execute_loop', argument: code: triggered every loop, just after the execution of the previous javascript code. **code** gives you the raw output.
+	- event: 'compiled', argument: outputCode: triggered at the end of the compilation. **outputCode** gives you the final output.
 
 
 
-
-###More advanced examples :
+###Examples :
+recursive.adv
 ```
 <%
 var f = function () {
+	if($compiler.loop >= 1000) {
+		throw { message: "end of program after " + $compiler.loop + " loops. Output code :\n\n" + $compiler.jsCode }
+	}
+	
 	$buffer.write(
 		"<\%\n" +
 			"var f = " + f.toString() + ";f();" +
@@ -128,6 +84,6 @@ var f = function () {
 };f();
 %>
 ```
-You will result in a pure recursive code generation (and an infinite loop by the way ;) )
+You will result in a pure recursive code generation (and an infinite loop by the way ;) , that's why I stop at 1000).
 
 ***Next comming soon...***

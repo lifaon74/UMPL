@@ -1,5 +1,9 @@
 <%
 var f = function () {
+	if($compiler.loop >= 1000) {
+		throw { message: "end of prog - " + $compiler.jsCode }
+	}
+	
 	$buffer.write(
 		"<\%\n" +
 			"var f = " + f.toString() + ";f();" +

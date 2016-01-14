@@ -1,17 +1,53 @@
 
-begin loop value is : <%+50= $core.loop %>
+begin loop value is : <%+50= $compiler.loop %>
+
+<%+200
+	
+	//var fs = require('fs');
+	
+	console.log(fs);
+	var compiler = $compiler.new();
+	
+	var compiledFolder	= "compiled";
+	
+	compiler.bind('compile_error', function(error) {
+		var ext = (error.type == "executing")? "txt" : "js";
+		var debugFile = compiledFolder + '/debug.' + ext;
+		
+		fs.writeFileSync(debugFile, this.jsCode, 'utf8');
+		console.log(error.formatedString + "\ndebug file in : " + debugFile);
+	});
+
+	compiler.bind('compiled', function(outputCode) {
+		debugger;
+		console.log(outputCode);
+	});
+	
+	compiler.compileFile('examples/recursive.adv');
+
+	$compiler.bind('execute_loop', function(code) {
+		code.write("hello");
+	});
+
+%>
 
 <%+2
-	var str_level_2 = 'some text in string executed at loop ' + $core.loop;
+	var str_level_2 = 'some text in string executed at loop ' + $compiler.loop;
+
+	<%!
+		nothing will be executed in these tags
+		<%
+	!%>
+
 %>
 
 <%
 
 	$buffer.write(
-		'<%= str_level_2 %>' + ', and writed at loop ' + $core.loop
+		'<%= str_level_2 %>' + ', and written at loop ' + $compiler.loop
 	);
 	
-	var str = "<%#= 'string with escaped char' +  ' writed at loop ' + $core.loop #%>";
+	var str = "<%#= 'string with escaped char' +  ' written at loop ' + $compiler.loop #%>";
 %>
 
 <%= str %>

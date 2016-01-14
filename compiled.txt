@@ -1,10 +1,12 @@
 
-begin loop value is : 0
+begin loop value is : 1
 
 
 
-some text in string executed at loop 1, and writed at loop 2
 
-string with escaped char writed at loop 3
 
-end of file
+some text in string executed at loop 2, and written at loop 3
+
+string with escaped char written at loop 4
+
+end of filehellohellohellohellohello

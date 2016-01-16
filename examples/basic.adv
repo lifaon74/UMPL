@@ -11,7 +11,7 @@ first loop here :
 		here we have comments,
 		nothing will be executed into these tags
 		
-		<%	-> so it's not a problem to write am open tag
+		<%	-> so it's not a problem to write an open tag
 		
 	!%>
 
@@ -20,7 +20,7 @@ first loop here :
 <%
 		// we can use $buffer.write to output data
 	$buffer.write(
-			// this is possible to put tags inside of string
+			// it's possible to put tags inside of string
 		'<%= str_level_2 %>' + ', and written at loop ' + $compiler.loop
 	);
 	

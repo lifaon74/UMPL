@@ -3,6 +3,10 @@ This project enable powerfull code preprocessing for any languages simply by add
 
 *current version :* **0.9.0** (work in progress, functional)
 
+###Install and test :
+Download the lib from github, open a console and type :
+```node index.js```
+
 ###Syntax :
 UMPL works with *every language*. It's an overlay which add tags and preprocess everything bettween them. Inside of these tags, you write **javascript (node.js)** code.
 The force come from the fact that you can add tags *inside* of others tags : so it's possible to generate code for sublevels and do a lot of preprocessing for strong optimization. The compiler will then start with the higher level (depending of tag nesting), and execute as many loops as necessary until nothing remains to be compiled.

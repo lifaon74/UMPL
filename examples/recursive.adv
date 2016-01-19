@@ -4,7 +4,7 @@ var f = function () {
 		throw { message: "end of prog after " + $compiler.loop + " loops. output code :\n\n" + $compiler.jsCode }
 	}
 	
-	$buffer.write(
+	$buffer.push(
 		"<\%\n" +
 			"var f = " + f.toString() + ";f();" +
 		"\n%\>"

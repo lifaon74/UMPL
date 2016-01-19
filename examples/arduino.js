@@ -1,4 +1,5 @@
 <%+1000
+		// here I put a security : if we loop more than 1000 times, we stop all
 	$compiler.bind('execute_loop', function() {
 		if($compiler.loop > 100) {
 			throw "security infinite loop break";
@@ -37,17 +38,7 @@
 	};
 	
 	
-	var RawCode = function(code) {
-		this.code = code;
-	};
 	
-	RawCode.prototype.toString = function() {
-		return this.code;
-	};
-	
-	var rawCode = function(code) {
-		return new RawCode(code);
-	};
 	
 	_const.pins = {
 		"D0"	: 0 ,
@@ -65,31 +56,76 @@
 		"D12"	: 12,
 		"D13"	: 13,
 		
-		"A0"	: 20,
-		"A1"	: 21,
-		"A2"	: 22,
-		"A3"	: 23,
-		"A4"	: 24,
-		"A5"	: 25/*,
-		"A6"	: 26,
-		"A7"	: 27*/
+		"A0"	: 16,
+		"A1"	: 17,
+		"A2"	: 18,
+		"A3"	: 19,
+		"A4"	: 20,
+		"A5"	: 21/*,
+		"A6"	: 22,
+		"A7"	: 23*/
 	};
 		
-	$compiler.global._const = _const;
+		
+		// use $compiler.globals to store variables through different levels
+	$compiler.globals._const = _const;
+
 %>
 
 <%	
-
+	
 	/*var tools = require('tools');
 	var _ = tools._;
 	
-	var _const = $compiler.global._const;
-	var ATMEGA328P = $compiler.global.ATMEGA328P;*/
+	var _const = $compiler.globals._const;
+	var ATMEGA328P = $compiler.globals.ATMEGA328P;*/
 	
 	
 	var ATMEGA328P = function() {
 		var self = this;
 		self._const = _const;
+		
+		self.cpp_functions = {
+			'pinToPORTMask':
+				// this special close_tag will convert following text into string instead of outputting it into buffer
+				=%>
+					unsigned char pinToPORTMask(unsigned char pin) {
+						if((0 <= pin) && (pin < 8)) {
+							return 1 << pin;
+						} else if((8 <= pin) && (pin < 14)) {
+							return 1 << (pin - 8);
+						} else if((16 <= pin) && (pin < 22)) {
+							return 1 << (pin - 16);
+						} else {
+							return NULL;
+						}
+					};
+				<% ,
+			'pinToPORT':
+				=%>
+					volatile unsigned char * pinToPORT(unsigned char pin) {
+						if((0 <= pin) && (pin < 8)) {
+							return &PORTD;
+						} else if((8 <= pin) && (pin < 14)) {
+							return &PORTB;
+						} else if((16 <= pin) && (pin < 22)) {
+							return &PORTB;
+						} else {
+							return NULL;
+						}
+					};
+				<%
+		};
+	};
+	
+	ATMEGA328P.prototype.getCPPFunctions = function(number) {
+		var self = this;
+		var string = "";
+		for(fnc in self.cpp_functions) {
+			string += self.cpp_functions[fnc] + "\n";
+		}
+		
+		return string;
 	};
 	
 	ATMEGA328P.prototype.setup = function(number) {
@@ -97,7 +133,7 @@
 	
 	
 	ATMEGA328P.prototype.convertNumberToByte = function(number) {
-		if(number instanceof RawCode) {
+		if(number instanceof VString) {
 			return number;
 		} else {
 			var bitString = "B";
@@ -111,8 +147,8 @@
 	ATMEGA328P.prototype.invert = function(number) {
 		if(_.isNumber(number)) {
 			return (~number & 0b11111111);
-		} else if(number instanceof RawCode) {
-			return rawCode("~(" + number.toString() + ")");
+		} else if(number instanceof VString) {
+			return new VString("~(" + number.toString() + ")");
 		} else {
 			throw {
 				message: "unknow number type",
@@ -124,7 +160,7 @@
 	ATMEGA328P.prototype.tryToConvert = function(_var, type) {
 		var self = this;
 		
-		if(_var instanceof RawCode) {
+		if(_var instanceof VString) {
 			return _var;
 		} else {
 			switch(type) {
@@ -161,20 +197,19 @@
 		}
 	};
 	
-	
 	ATMEGA328P.prototype.pinToPORTMask = function(pin) {
 		var self = this;
 	
 		pin = self.tryToConvert(pin, "number");
-		if(pin instanceof RawCode) {
-			return rawCode("pinToPORTMask(" + pin.toString() + ")");
+		if(pin instanceof VString) {
+			return new VString("pinToPORTMask(" + pin.toString() + ")");
 		} else {
 			if((0 <= pin) && (pin < 8)) {
 				return 1 << pin;
 			} else if((8 <= pin) && (pin < 14)) {
 				return 1 << (pin - 8);
-			} else if((20 <= pin) && (pin < 26)) {
-				return 1 << (pin - 20);
+			} else if((16 <= pin) && (pin < 22)) {
+				return 1 << (pin - 16);
 			} else {
 				throw {
 					message: "unknow pin number",
@@ -188,14 +223,14 @@
 		var self = this;
 		
 		pin = self.tryToConvert(pin, "number");
-		if(pin instanceof RawCode) {
-			return rawCode("pinToPORT(" + pin.toString() + ")");
+		if(pin instanceof VString) {
+			return new VString("*pinToPORT(" + pin.toString() + ")");
 		} else {
 			if((0 <= pin) && (pin < 8)) {
 				return "PORTD";
 			} else if((8 <= pin) && (pin < 14)) {
 				return "PORTB";
-			} else if((20 <= pin) && (pin < 26)) {
+			} else if((16 <= pin) && (pin < 22)) {
 				return "PORTB";
 			} else {
 				throw {
@@ -211,8 +246,8 @@
 		var self = this;
 		
 		state = self.tryToConvert(state, "bool");
-		if(state instanceof RawCode) {
-			return rawCode(
+		if(state instanceof VString) {
+			return new VString(
 				"(" + state.toString() + " ? " +
 					"(" + self.pinToPORT(pin).toString() + " |= " + self.convertNumberToByte(self.pinToPORTMask(pin)).toString() + ")" + " : " +
 					"(" + self.pinToPORT(pin).toString() + " &= " + self.convertNumberToByte(self.invert(self.pinToPORTMask(pin))).toString() + ")" +
@@ -246,6 +281,9 @@ three ways of writing the same function :
 	var ledPin	= "D13";
 %>
 
+<%= microcontroller.getCPPFunctions() %>
+
+
 	// the code inside of this function is strongly optimized
 void blink_fast() {
 	<%= microcontroller.digitalWrite(ledPin, 'HIGH') %>
@@ -257,9 +295,8 @@ void blink_fast() {
 
 	// the code inside of this function is not optimized at the best because we use a C++ constant 
 void blink_slow() {
-		// not finished
-	//<%= microcontroller.digitalWrite(rawCode('LED_PIN'), 'HIGH') %>
-	//<%= microcontroller.digitalWrite(rawCode('LED_PIN'), 'LOW') %>
+	<%= microcontroller.digitalWrite(new VString('LED_PIN'), 'HIGH') %>
+	<%= microcontroller.digitalWrite(new VString('LED_PIN'), 'LOW') %>
 };
 
 	// the code inside of this function is the slowest, digitalWrite is provided by the Arduino IDE
@@ -299,4 +336,6 @@ void setup() {
 void loop() {
 	
 }
+
+
 	

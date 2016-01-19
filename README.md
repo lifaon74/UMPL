@@ -1,7 +1,7 @@
 ##Universal Meta Programming Language (UMPL)##
 This project enable powerfull code preprocessing for any languages simply by adding a set a tags. This way it's possible to **strongly optimize program**, and even create **self-programming software**. This project is inspired from PHP and ASP.NET, but go further.
 
-*current version :* **0.9.0** (work in progress, functional)
+*current version :* **0.9.2** (work in progress, functional)
 
 ###Install and test :
 Download the lib from github, open a console and type :
@@ -29,17 +29,6 @@ The force come from the fact that you can add tags *inside* of others tags : so 
 <%+2 some code executed on the second loop, because it's nesting level is 2 %>
 ```
 
-- ```=``` :  adding equal sign after a tag will do a direct write.
-```
-<% var i = "Hello world !"; %>
-<%= i %>
-```
-Result in :
-```
-Hello world !
-```
-
-
 **IMPORTANT** : you must have a white space after ```<%``` and before ```%>```
 
 ####Escape :
@@ -47,16 +36,28 @@ Hello world !
 - ```#%>``` : escape the closetag. Will result in ```%>```
 
 ####Write some data :
-- ```$buffer.write(data)``` :  everything written into the buffer, will be print into the sublevel.
+- ```$buffer.push(data)``` :  everything written into the buffer, will be print into the sublevel.
 ```
-<% $buffer.write("Hello world !"); %>
+<% $buffer.push("Hello world !"); %>
 ```
 Result in :
 ```
 Hello world !
 ```
 
-If necessary, you can read or modify the buffer, by acessing to raw output with ```$buffer.buffer```.
+####Equal :
+
+- ```=%> txt <%= js =%>``` :  will be converted into ```txt + " + " + js + " + "```, can be read as -- convert "txt" in javascript string, append "js" string, and append next raw text --
+- ```=%> txt <%= js %>``` :  is invalid
+- ```=%> txt <% js [tag]``` : will be converted into ```txt + js```, can be read as -- convert "txt" in javascript string, then do whats' you want with your js code --
+- ```%> txt <%= js =%>``` : is invalid
+- ```%> txt <%= js %>``` :  will be converted into ```"$buffer.push(" + txt + " + " + js + ");"```, can be read as -- convert "txt" in javascript string, and append your js code, then write both into the out buffer --
+- ```%> txt <% js [tag]``` :  will be converted into ```"$buffer.push(" + txt + ");" + js```, can be read as -- convert "txt" in javascript string, write it into the buffer, then do whats' you want with your js code --
+
+**To sum up:** 
+
+- ```=%>``` to convert following raw text into js string
+- ```<%=``` to write following javascript code directly
 
 ####Control process :
 ```$compiler``` will give you a set of methods to control the execution of the preprocessing compilation.
@@ -80,7 +81,7 @@ var f = function () {
 		throw { message: "end of program after " + $compiler.loop + " loops. Output code :\n\n" + $compiler.jsCode }
 	}
 	
-	$buffer.write(
+	$buffer.push(
 		"<\%\n" +
 			"var f = " + f.toString() + ";f();" +
 		"\n%\>"

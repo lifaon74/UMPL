@@ -15,6 +15,35 @@ three ways of writing the same function :
 
 
 
+
+					unsigned char pinToPORTMask(unsigned char pin) {
+						if((0 <= pin) && (pin < 8)) {
+							return 1 << pin;
+						} else if((8 <= pin) && (pin < 14)) {
+							return 1 << (pin - 8);
+						} else if((16 <= pin) && (pin < 22)) {
+							return 1 << (pin - 16);
+						} else {
+							return NULL;
+						}
+					};
+				
+
+					volatile unsigned char * pinToPORT(unsigned char pin) {
+						if((0 <= pin) && (pin < 8)) {
+							return &PORTD;
+						} else if((8 <= pin) && (pin < 14)) {
+							return &PORTB;
+						} else if((16 <= pin) && (pin < 22)) {
+							return &PORTB;
+						} else {
+							return NULL;
+						}
+					};
+				
+
+
+
 	// the code inside of this function is strongly optimized
 void blink_fast() {
 	PORTB |= B00100000;
@@ -26,9 +55,8 @@ void blink_fast() {
 
 	// the code inside of this function is not optimized at the best because we use a C++ constant 
 void blink_slow() {
-		// not finished
-	//pinToPORT(LED_PIN) |= pinToPORTMask(LED_PIN);
-	//pinToPORT(LED_PIN) &= ~(pinToPORTMask(LED_PIN));
+	*pinToPORT(LED_PIN) |= pinToPORTMask(LED_PIN);
+	*pinToPORT(LED_PIN) &= ~(pinToPORTMask(LED_PIN));
 };
 
 	// the code inside of this function is the slowest, digitalWrite is provided by the Arduino IDE
@@ -84,4 +112,6 @@ void setup() {
 void loop() {
 	
 }
+
+
 	

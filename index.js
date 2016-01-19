@@ -98,4 +98,8 @@ var compileFile = function(fileName, verbose) {
 //var fileName = "examples/basic.adv";
 var fileName = "examples/arduino.js";
 //var fileName = "examples/variables_scope.js";
+//var fileName = "examples/aliments.js";
+//var fileName = "examples/const.js";
+//var fileName = "examples/buffer.js";
+
 compileFile(fileName, true);

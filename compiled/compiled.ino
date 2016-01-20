@@ -16,18 +16,20 @@ three ways of writing the same function :
 
 
 
-					unsigned char pinToPORTMask(unsigned char pin) {
-						if((0 <= pin) && (pin < 8)) {
-							return 1 << pin;
-						} else if((8 <= pin) && (pin < 14)) {
-							return 1 << (pin - 8);
-						} else if((16 <= pin) && (pin < 22)) {
-							return 1 << (pin - 16);
-						} else {
-							return NULL;
-						}
-					};
-				
+				 unsigned char pinToPORTMask(unsigned char pin) { 
+					
+				if((0 <= pin) && (pin < 8)) {
+						return 1 << pin;
+					} else if((8 <= pin) && (pin < 14)) {
+						return 1 << (pin - 8);
+					} else if((16 <= pin) && (pin < 22)) {
+						return 1 << (pin - 16);
+					} else {
+						 return NULL; 
+					}
+				};
+			
+			
 
 					volatile unsigned char * pinToPORT(unsigned char pin) {
 						if((0 <= pin) && (pin < 8)) {

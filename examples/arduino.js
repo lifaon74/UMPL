@@ -1,19 +1,21 @@
 <%+1000
+
 		// here I put a security : if we loop more than 1000 times, we stop all
 	$compiler.bind('execute_loop', function() {
 		if($compiler.loop > 100) {
 			throw "security infinite loop break";
 		}
 	});
+	
+	var tools = require('tools');
+		// use $scope to have the variable _ on all the following loops, this way, it's possible to require just one time 'tools'
+	$scope['_'] = tools._;
 %>
 
 <%
 	/**
 		Arduino optimizer
 	**/
-	
-	var tools = require('tools');
-	var _ = tools._;
 	
 	var _const = {};
 	
@@ -67,41 +69,66 @@
 	};
 		
 		
-		// use $compiler.globals to store variables through different levels
-	$compiler.globals._const = _const;
+		// use $globals to store variables through different levels
+	$globals._const = _const;
 
 %>
 
 <%	
 	
-	/*var tools = require('tools');
-	var _ = tools._;
-	
-	var _const = $compiler.globals._const;
-	var ATMEGA328P = $compiler.globals.ATMEGA328P;*/
-	
+	<%
+			// this is here to show how we can translate the same function in JS or in C++
+		var pinToPORTMask = function(isCpp) {
+			var _return = "";
+			
+			if(isCpp) {
+					// this special close_tag will convert following text into string instead of outputting it into buffer
+				_return += =%> unsigned char pinToPORTMask(unsigned char pin) { <% ;
+			} else {
+				_return += =%> function(pin) { <% ;
+			}
+			
+			_return += =%>
+					
+				if((0 <= pin) && (pin < 8)) {
+						return 1 << pin;
+					} else if((8 <= pin) && (pin < 14)) {
+						return 1 << (pin - 8);
+					} else if((16 <= pin) && (pin < 22)) {
+						return 1 << (pin - 16);
+					} else {
+						<% ;
+							if(isCpp) {
+								_return += =%> return NULL; <% ;
+							} else {
+								_return += =%> throw {
+									message: "unknow pin number",
+									pin: pin
+								}; <% ;
+							}
+						_return +=
+						=%>
+					}
+				};
+			<% ;
+				
+			return _return;
+		}
+		
+		// pinToPORTMask(false); to get theJSs function
+		// pinToPORTMask(true); to get the C++ function
+	%>
 	
 	var ATMEGA328P = function() {
 		var self = this;
 		self._const = _const;
 		
 		self.cpp_functions = {
-			'pinToPORTMask':
-				// this special close_tag will convert following text into string instead of outputting it into buffer
-				=%>
-					unsigned char pinToPORTMask(unsigned char pin) {
-						if((0 <= pin) && (pin < 8)) {
-							return 1 << pin;
-						} else if((8 <= pin) && (pin < 14)) {
-							return 1 << (pin - 8);
-						} else if((16 <= pin) && (pin < 22)) {
-							return 1 << (pin - 16);
-						} else {
-							return NULL;
-						}
-					};
-				<% ,
+			'pinToPORTMask': =%>
+				<%+2= pinToPORTMask(true) %>
+			<% ,
 			'pinToPORT':
+
 				=%>
 					volatile unsigned char * pinToPORT(unsigned char pin) {
 						if((0 <= pin) && (pin < 8)) {

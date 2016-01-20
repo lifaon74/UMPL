@@ -66,7 +66,7 @@ $buffer.push("\r\n\r\n");
 		self._const = _const;
 		
 		self.cpp_functions = {
-			'pinToPORTMask': "\r\n\t\t\t\t unsigned char pinToPORTMask(unsigned char pin) { \r\n\t\t\t\t\t\r\n\t\t\t\tif((0 <= pin) && (pin < 8)) {\r\n\t\t\t\t\t\treturn 1 << pin;\r\n\t\t\t\t\t} else if((8 <= pin) && (pin < 14)) {\r\n\t\t\t\t\t\treturn 1 << (pin - 8);\r\n\t\t\t\t\t} else if((16 <= pin) && (pin < 22)) {\r\n\t\t\t\t\t\treturn 1 << (pin - 16);\r\n\t\t\t\t\t} else {\r\n\t\t\t\t\t\t return NULL; \r\n\t\t\t\t\t}\r\n\t\t\t\t};\r\n\t\t\t\r\n\t\t\t",
+			'pinToPORTMask': "\r\n\t\t\t\t unsigned char pinToPORTMask(unsigned char pin) { \r\n\t\t\t\t\t\r\n\t\t\t\tif((0 <= pin) && (pin < 8)) {\r\n\t\t\t\t\t\treturn 1 << pin;\r\n\t\t\t\t\t} else if((8 <= pin) && (pin < 14)) {\r\n\t\t\t\t\t\treturn 1 << (pin - 8);\r\n\t\t\t\t\t} else if((16 <= pin) && (pin < 22)) {\r\n\t\t\t\t\t\treturn 1 << (pin - 16);\r\n\t\t\t\t\t} else {\r\n\t\t\t\t\t\t return NULL; \r\n\t\t\t\t\t}\r\n\t\t\t\t}\r\n\t\t\t\r\n\t\t\t",
 			'pinToPORT':
 
 				"\r\n\t\t\t\t\tvolatile unsigned char * pinToPORT(unsigned char pin) {\r\n\t\t\t\t\t\tif((0 <= pin) && (pin < 8)) {\r\n\t\t\t\t\t\t\treturn &PORTD;\r\n\t\t\t\t\t\t} else if((8 <= pin) && (pin < 14)) {\r\n\t\t\t\t\t\t\treturn &PORTB;\r\n\t\t\t\t\t\t} else if((16 <= pin) && (pin < 22)) {\r\n\t\t\t\t\t\t\treturn &PORTB;\r\n\t\t\t\t\t\t} else {\r\n\t\t\t\t\t\t\treturn NULL;\r\n\t\t\t\t\t\t}\r\n\t\t\t\t\t};\r\n\t\t\t\t"
@@ -159,7 +159,25 @@ $buffer.push("\r\n\r\n");
 		if(pin instanceof VString) {
 			return new VString("pinToPORTMask(" + pin.toString() + ")");
 		} else {
-			if((0 <= pin) && (pin < 8)) {
+			debugger;
+		
+			return ( function(pin) { 
+					
+				if((0 <= pin) && (pin < 8)) {
+						return 1 << pin;
+					} else if((8 <= pin) && (pin < 14)) {
+						return 1 << (pin - 8);
+					} else if((16 <= pin) && (pin < 22)) {
+						return 1 << (pin - 16);
+					} else {
+						 throw {
+									message: "unknow pin number",
+									pin: pin
+								}; 
+					}
+				}
+			)(pin);
+			/*if((0 <= pin) && (pin < 8)) {
 				return 1 << pin;
 			} else if((8 <= pin) && (pin < 14)) {
 				return 1 << (pin - 8);
@@ -170,7 +188,7 @@ $buffer.push("\r\n\r\n");
 					message: "unknow pin number",
 					pin: pin
 				};
-			}
+			}*/
 		}
 	};
 	

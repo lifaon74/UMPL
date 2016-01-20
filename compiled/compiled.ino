@@ -27,7 +27,7 @@ three ways of writing the same function :
 					} else {
 						 return NULL; 
 					}
-				};
+				}
 			
 			
 

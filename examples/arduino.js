@@ -109,13 +109,13 @@
 						_return +=
 						=%>
 					}
-				};
+				}
 			<% ;
 				
 			return _return;
 		}
 		
-		// pinToPORTMask(false); to get theJSs function
+		// pinToPORTMask(false); to get the JS function
 		// pinToPORTMask(true); to get the C++ function
 	%>
 	
@@ -126,7 +126,7 @@
 		self.cpp_functions = {
 			'pinToPORTMask': =%>
 				<%+2= pinToPORTMask(true) %>
-			<% ,
+			<% , // I write here the C++ function as a string
 			'pinToPORT':
 
 				=%>
@@ -231,7 +231,8 @@
 		if(pin instanceof VString) {
 			return new VString("pinToPORTMask(" + pin.toString() + ")");
 		} else {
-			if((0 <= pin) && (pin < 8)) {
+			return (<%= pinToPORTMask(false) %>)(pin); // I write here the JS function as a string
+			/*if((0 <= pin) && (pin < 8)) {
 				return 1 << pin;
 			} else if((8 <= pin) && (pin < 14)) {
 				return 1 << (pin - 8);
@@ -242,7 +243,7 @@
 					message: "unknow pin number",
 					pin: pin
 				};
-			}
+			}*/
 		}
 	};
 	

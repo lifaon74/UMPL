@@ -3,7 +3,6 @@
 
 
 
-
 /*
 three ways of writing the same function :
 
@@ -44,7 +43,7 @@ void blink_slower() { // 21.6µs @8Mhz  > 10.8µs / write
 
 
 /**
-	The following code can't be optimized by the c++ compiler, so it will only show the arduino.js optimizations
+	The following code can't be optimized by the c++ compiler, so it will only show the arduino.js optimizations.
 **/
 
 void blink_fast_2() { // 94.7µs @8Mhz > 3.6µs / write
@@ -67,6 +66,7 @@ void blink_slower_2() { // 309.2µs @8Mhz > 11.9µs / write
 /**
 	Verdict : if you use arduino.js methods instead of native Arduino IDE function,
 	you'll reduce a least the process time by 3.3 and at the best 9 times faster !
+	Worth it no ?
 **/
 
 

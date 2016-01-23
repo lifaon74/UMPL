@@ -1,27 +1,259 @@
-$buffer.push("\r\n\r\n<%\r\n\t/**\r\n\t\tArduino optimizer\r\n\t**/\r\n\t\r\n\tvar _const = {};\r\n\t\r\n\t_const.getConstvalue = function(search_const) {\r\n\t\tvar subConst;\r\n\t\tfor(subConstKey in this) {\r\n\t\t\tsubConst = this[subConstKey];\r\n\t\t\tif(!_.isUndefined(subConst[search_const])) {\r\n\t\t\t\treturn subConst[search_const];\r\n\t\t\t}\r\n\t\t}\r\n\t};\r\n\t\r\n\t_const.microcontrollers = _.enumerate([\r\n\t\t\"ATMEGA328P\",\r\n\t\t\"ATMEGA32U4\"\r\n\t]);\r\n\t\r\n\t_const.pinState = {\r\n\t\t\"HIGH\"\t: 1 ,\r\n\t\t\"LOW\"\t: 0\r\n\t};\r\n\t\r\n\t\r\n\t\r\n\t\r\n\t_const.pins = {\r\n\t\t\"D0\"\t: 0 ,\r\n\t\t\"D1\"\t: 1,\r\n\t\t\"D2\"\t: 2,\r\n\t\t\"D3\"\t: 3,\r\n\t\t\"D4\"\t: 4,\r\n\t\t\"D5\"\t: 5,\r\n\t\t\"D6\"\t: 6,\r\n\t\t\"D7\"\t: 7,\r\n\t\t\"D8\"\t: 8,\r\n\t\t\"D9\"\t: 9,\r\n\t\t\"D10\"\t: 10,\r\n\t\t\"D11\"\t: 11,\r\n\t\t\"D12\"\t: 12,\r\n\t\t\"D13\"\t: 13,\r\n\t\t\r\n\t\t\"A0\"\t: 16,\r\n\t\t\"A1\"\t: 17,\r\n\t\t\"A2\"\t: 18,\r\n\t\t\"A3\"\t: 19,\r\n\t\t\"A4\"\t: 20,\r\n\t\t\"A5\"\t: 21/*,\r\n\t\t\"A6\"\t: 22,\r\n\t\t\"A7\"\t: 23*/\r\n\t};\r\n\t\t\r\n\t\t\r\n\t\t// use $globals to store variables through different levels\r\n\t$globals._const = _const;\r\n\r\n%>\r\n\r\n<%\t\r\n\t\r\n\t");
-			// this is here to show how we can translate the same function in JS or in C++
-		var pinToPORTMask = function(isCpp) {
-			var _return = "";
-			
-			if(isCpp) {
-					// this special close_tag will convert following text into string instead of outputting it into buffer
-				_return += " unsigned char pinToPORTMask(unsigned char pin) { ";
-			} else {
-				_return += " function(pin) { ";
+$buffer.push("\r\n\r\n");
+	/**
+		Arduino optimizer
+	**/
+	
+	var _const = {};
+	
+	_const.getConstvalue = function(search_const) {
+		var subConst;
+		for(subConstKey in this) {
+			subConst = this[subConstKey];
+			if(!_.isUndefined(subConst[search_const])) {
+				return subConst[search_const];
 			}
+		}
+	};
+	
+	_const.microcontrollers = _.enumerate([
+		"ATMEGA328P",
+		"ATMEGA32U4"
+	]);
+	
+	_const.pinState = {
+		"HIGH"	: 1 ,
+		"LOW"	: 0
+	};
+	
+	
+	
+	_const.pins = {
+		"D0"	: 0 ,
+		"D1"	: 1,
+		"D2"	: 2,
+		"D3"	: 3,
+		"D4"	: 4,
+		"D5"	: 5,
+		"D6"	: 6,
+		"D7"	: 7,
+		"D8"	: 8,
+		"D9"	: 9,
+		"D10"	: 10,
+		"D11"	: 11,
+		"D12"	: 12,
+		"D13"	: 13,
+		
+		"A0"	: 16,
+		"A1"	: 17,
+		"A2"	: 18,
+		"A3"	: 19,
+		"A4"	: 20,
+		"A5"	: 21/*,
+		"A6"	: 22,
+		"A7"	: 23*/
+	};
+		
+		
+		// use $globals to store variables through different levels
+	$globals._const = _const;
+$buffer.push("\r\n\r\n");
+	var ATMEGA328P = function() {
+		var self = this;
+		self._const = _const;
+		
+	};
+
+	ATMEGA328P.prototype.functions = [];
+	
+	/*ATMEGA328P.prototype.getCPPFunction = function(_function) {
+		
+		if(_.isString(_function.outside)) {
+			string += _function.outside + "\n";
+		}
 			
-			_return += "\r\n\t\t\t\t\t\r\n\t\t\t\tif((0 <= pin) && (pin < 8)) {\r\n\t\t\t\t\t\treturn 1 << pin;\r\n\t\t\t\t\t} else if((8 <= pin) && (pin < 14)) {\r\n\t\t\t\t\t\treturn 1 << (pin - 8);\r\n\t\t\t\t\t} else if((16 <= pin) && (pin < 22)) {\r\n\t\t\t\t\t\treturn 1 << (pin - 16);\r\n\t\t\t\t\t} else {\r\n\t\t\t\t\t\t";
-							if(isCpp) {
-								_return += " return NULL; ";
-							} else {
-								_return += " throw {\r\n\t\t\t\t\t\t\t\t\tmessage: \"unknow pin number\",\r\n\t\t\t\t\t\t\t\t\tpin: pin\r\n\t\t\t\t\t\t\t\t}; ";
-							}
-						_return +=
-						"\r\n\t\t\t\t\t}\r\n\t\t\t\t}\r\n\t\t\t";
+		string += _function.returnType + " " + fncName + "(";
+		for(var i = 0; i < 
+			
+		return string;
+	};*/
+	
+	ATMEGA328P.prototype.getCPPFunctions = function() {
+		var self = this;
+		var string = "";
+		for(var i = 0; i < self.functions.length; i++) {
+			var fncName = self.functions[i];
+			var fnc = self[fncName];
+			
+			if(fnc.storeRAM) {
+				var values = "";
+				for(var j = 0; j < fnc.cppStore.size[0]; j++) {
+					if(j > 0) { values += ", "; }
+					var prefix = fnc.cppStore.prefix || "";
+					try {
+						values += prefix + fnc.apply(self, [j]);
+					} catch(error) {
+						values += "NULL";
+					}
+				}
 				
-			return _return;
+				string += fnc.cppStore.type + " " + fncName + "Array[] = { " + values + "};\n\n";	
+			} else {
+				string += self[fncName].cpp.trim() + "\n\n";	
+			}
 		}
 		
-		// pinToPORTMask(false); to get the JS function
-		// pinToPORTMask(true); to get the C++ function
-$buffer.push("\r\n\t\r\n\tvar ATMEGA328P = function() {\r\n\t\tvar self = this;\r\n\t\tself._const = _const;\r\n\t\t\r\n\t\tself.cpp_functions = {\r\n\t\t\t'pinToPORTMask': =%>\r\n\t\t\t\t" +  pinToPORTMask(true));$buffer.push("\r\n\t\t\t<% ,\r\n\t\t\t'pinToPORT':\r\n\r\n\t\t\t\t=%>\r\n\t\t\t\t\tvolatile unsigned char * pinToPORT(unsigned char pin) {\r\n\t\t\t\t\t\tif((0 <= pin) && (pin < 8)) {\r\n\t\t\t\t\t\t\treturn &PORTD;\r\n\t\t\t\t\t\t} else if((8 <= pin) && (pin < 14)) {\r\n\t\t\t\t\t\t\treturn &PORTB;\r\n\t\t\t\t\t\t} else if((16 <= pin) && (pin < 22)) {\r\n\t\t\t\t\t\t\treturn &PORTB;\r\n\t\t\t\t\t\t} else {\r\n\t\t\t\t\t\t\treturn NULL;\r\n\t\t\t\t\t\t}\r\n\t\t\t\t\t};\r\n\t\t\t\t<%\r\n\t\t};\r\n\t};\r\n\t\r\n\tATMEGA328P.prototype.getCPPFunctions = function(number) {\r\n\t\tvar self = this;\r\n\t\tvar string = \"\";\r\n\t\tfor(fnc in self.cpp_functions) {\r\n\t\t\tstring += self.cpp_functions[fnc] + \"\\n\";\r\n\t\t}\r\n\t\t\r\n\t\treturn string;\r\n\t};\r\n\t\r\n\tATMEGA328P.prototype.setup = function(number) {\r\n\t};\r\n\t\r\n\t\r\n\tATMEGA328P.prototype.convertNumberToByte = function(number) {\r\n\t\tif(number instanceof VString) {\r\n\t\t\treturn number;\r\n\t\t} else {\r\n\t\t\tvar bitString = \"B\";\r\n\t\t\tfor(var i = 7; i >= 0; i--) {\r\n\t\t\t\tbitString += (number >> i) & 1;\r\n\t\t\t}\r\n\t\t\treturn bitString;\r\n\t\t}\r\n\t};\r\n\t\r\n\tATMEGA328P.prototype.invert = function(number) {\r\n\t\tif(_.isNumber(number)) {\r\n\t\t\treturn (~number & 0b11111111);\r\n\t\t} else if(number instanceof VString) {\r\n\t\t\treturn new VString(\"~(\" + number.toString() + \")\");\r\n\t\t} else {\r\n\t\t\tthrow {\r\n\t\t\t\tmessage: \"unknow number type\",\r\n\t\t\t\tnumber: number\r\n\t\t\t};\r\n\t\t}\r\n\t};\r\n\t\r\n\tATMEGA328P.prototype.tryToConvert = function(_var, type) {\r\n\t\tvar self = this;\r\n\t\t\r\n\t\tif(_var instanceof VString) {\r\n\t\t\treturn _var;\r\n\t\t} else {\r\n\t\t\tswitch(type) {\r\n\t\t\t\tcase \"number\":\r\n\t\t\t\t\tif(_.isNumber(_var)) {\r\n\t\t\t\t\t\treturn _var * 1;\r\n\t\t\t\t\t}\r\n\t\t\t\tbreak;\r\n\t\t\t\tcase \"bool\":\r\n\t\t\t\t\tif(_.isBool(_var)) {\r\n\t\t\t\t\t\treturn _var;\r\n\t\t\t\t\t} else if(_.isNumber(_var)) {\r\n\t\t\t\t\t\treturn _var ? true : false;\r\n\t\t\t\t\t}\r\n\t\t\t\tbreak;\r\n\t\t\t}\r\n\t\t\t\r\n\t\t\tif(_.isString(_var)) {\r\n\t\t\t\t_var = _const.getConstvalue(_var);\r\n\t\t\t\tif(_.isUndefined(_var)) {\r\n\t\t\t\t\tthrow {\r\n\t\t\t\t\t\tmessage: \"unknown constant\",\r\n\t\t\t\t\t\t_var: _var\r\n\t\t\t\t\t};\r\n\t\t\t\t} else {\r\n\t\t\t\t\treturn self.tryToConvert(_var, type);\r\n\t\t\t\t}\r\n\t\t\t} else {\r\n\t\t\t\tthrow {\r\n\t\t\t\t\tmessage: \"unknown type\",\r\n\t\t\t\t\t_var: _var\r\n\t\t\t\t};\r\n\t\t\t}\r\n\t\t}\r\n\t};\r\n\t\r\n\tATMEGA328P.prototype.pinToPORTMask = function(pin) {\r\n\t\tvar self = this;\r\n\t\r\n\t\tpin = self.tryToConvert(pin, \"number\");\r\n\t\tif(pin instanceof VString) {\r\n\t\t\treturn new VString(\"pinToPORTMask(\" + pin.toString() + \")\");\r\n\t\t} else {\r\n\t\t\tdebugger;\r\n\t\t\r\n\t\t\treturn (" +  pinToPORTMask(false));$buffer.push(")(pin);\r\n\t\t\t/*if((0 <= pin) && (pin < 8)) {\r\n\t\t\t\treturn 1 << pin;\r\n\t\t\t} else if((8 <= pin) && (pin < 14)) {\r\n\t\t\t\treturn 1 << (pin - 8);\r\n\t\t\t} else if((16 <= pin) && (pin < 22)) {\r\n\t\t\t\treturn 1 << (pin - 16);\r\n\t\t\t} else {\r\n\t\t\t\tthrow {\r\n\t\t\t\t\tmessage: \"unknow pin number\",\r\n\t\t\t\t\tpin: pin\r\n\t\t\t\t};\r\n\t\t\t}*/\r\n\t\t}\r\n\t};\r\n\t\r\n\tATMEGA328P.prototype.pinToPORT = function(pin) {\r\n\t\tvar self = this;\r\n\t\t\r\n\t\tpin = self.tryToConvert(pin, \"number\");\r\n\t\tif(pin instanceof VString) {\r\n\t\t\treturn new VString(\"*pinToPORT(\" + pin.toString() + \")\");\r\n\t\t} else {\r\n\t\t\tif((0 <= pin) && (pin < 8)) {\r\n\t\t\t\treturn \"PORTD\";\r\n\t\t\t} else if((8 <= pin) && (pin < 14)) {\r\n\t\t\t\treturn \"PORTB\";\r\n\t\t\t} else if((16 <= pin) && (pin < 22)) {\r\n\t\t\t\treturn \"PORTB\";\r\n\t\t\t} else {\r\n\t\t\t\tthrow {\r\n\t\t\t\t\tmessage: \"unknow pin number\",\r\n\t\t\t\t\tpin: pin\r\n\t\t\t\t};\r\n\t\t\t}\r\n\t\t}\r\n\t};\r\n\t\r\n\t\r\n\tATMEGA328P.prototype.digitalWrite = function(pin, state) {\r\n\t\tvar self = this;\r\n\t\t\r\n\t\tstate = self.tryToConvert(state, \"bool\");\r\n\t\tif(state instanceof VString) {\r\n\t\t\treturn new VString(\r\n\t\t\t\t\"(\" + state.toString() + \" ? \" +\r\n\t\t\t\t\t\"(\" + self.pinToPORT(pin).toString() + \" |= \" + self.convertNumberToByte(self.pinToPORTMask(pin)).toString() + \")\" + \" : \" +\r\n\t\t\t\t\t\"(\" + self.pinToPORT(pin).toString() + \" &= \" + self.convertNumberToByte(self.invert(self.pinToPORTMask(pin))).toString() + \")\" +\r\n\t\t\t\t\")\"\r\n\t\t\t);\r\n\t\t} else {\r\n\t\t\tif(state) {\r\n\t\t\t\treturn self.pinToPORT(pin).toString() + \" |= \" + self.convertNumberToByte(self.pinToPORTMask(pin)).toString() + \";\";\r\n\t\t\t} else {\r\n\t\t\t\treturn self.pinToPORT(pin).toString() + \" &= \" + self.convertNumberToByte(self.invert(self.pinToPORTMask(pin))).toString() + \";\";\r\n\t\t\t}\r\n\t\t}\r\n\t};\r\n\t\r\n\tvar microcontroller = new ATMEGA328P();\r\n%>\r\n\r\n/*\r\nthree ways of writing the same function :\r\n\r\n\t\r\n\t<%= microcontroller.digitalWrite('D5', 'HIGH') %> // giving D5 constant as a string\r\n\t<%= microcontroller.digitalWrite(_const.pins.D5, 'HIGH') %> // giving D5 constant from the _const object\r\n\t<%= microcontroller.digitalWrite(5, 'HIGH') %> // giving number 5 \r\n*/\r\n\r\n<%\r\n\t// why UMPL is useful ? you'll see :\r\n\t\r\n\t\t// we define constants here and not in the C++ code\r\n\tvar ledPin\t= \"D13\";\r\n%>\r\n\r\n<%= microcontroller.getCPPFunctions() %>\r\n\r\n\r\n\t// the code inside of this function is strongly optimized\r\nvoid blink_fast() {\r\n\t<%= microcontroller.digitalWrite(ledPin, 'HIGH') %>\r\n\t<%= microcontroller.digitalWrite(ledPin, 'LOW') %>\r\n};\r\n\r\n\r\n#define LED_PIN 13\r\n\r\n\t// the code inside of this function is not optimized at the best because we use a C++ constant \r\nvoid blink_slow() {\r\n\t<%= microcontroller.digitalWrite(new VString('LED_PIN'), 'HIGH') %>\r\n\t<%= microcontroller.digitalWrite(new VString('LED_PIN'), 'LOW') %>\r\n};\r\n\r\n\t// the code inside of this function is the slowest, digitalWrite is provided by the Arduino IDE\r\nvoid blink_slower() {\r\n\tdigitalWrite(LED_PIN, HIGH);\r\n\tdigitalWrite(LED_PIN, LOW);\r\n};\r\n\r\n\r\nuint32_t time_0;\r\nuint32_t time_1;\r\n\r\nvoid setup() {\r\n\tSerial.begin(115200);\r\n\t\r\n\t<%\r\n\r\n\t\tvar exec_num = 100000;\r\n\t\t['blink_fast', 'blink_slow', 'blink_slower'].forEach(function(fnc) {\r\n\t\t\t%>\r\n\t\t\t\r\n\t\t\t\ttime_0 = micros();\r\n\t\t\t\tfor(uint32_t i = 0; i < <%= exec_num %>; i++) {\r\n\t\t\t\t\t<%= fnc %>();\r\n\t\t\t\t}\r\n\t\t\t\t\r\n\t\t\t\ttime_1 = micros();\r\n\t\t\t\tSerial.print(\"<%= fnc %> takes \");\r\n\t\t\t\tSerial.print(((float) (time_1 - time_0)) / <%= exec_num %>, DEC);\r\n\t\t\t\tSerial.println(\" microseconds\");\r\n\t\t\t<%\r\n\t\t});\r\n\t%>\r\n}\r\n\r\n\r\nvoid loop() {\r\n\t\r\n}\r\n\r\n\r\n\t");
+		return string;
+	};
+	
+	ATMEGA328P.prototype.setup = function(number) {
+	};
+	
+	
+	ATMEGA328P.prototype.convertNumberToByte = function(number) {
+		if(number instanceof VString) {
+			return number;
+		} else {
+			var bitString = "B";
+			for(var i = 7; i >= 0; i--) {
+				bitString += (number >> i) & 1;
+			}
+			return bitString;
+		}
+	};
+	
+	ATMEGA328P.prototype.invert = function(number) {
+		if(_.isNumber(number)) {
+			return (~number & 0b11111111);
+		} else if(number instanceof VString) {
+			return new VString("~(" + number.toString() + ")");
+		} else {
+			throw {
+				message: "unknow number type",
+				number: number
+			};
+		}
+	};
+	
+	ATMEGA328P.prototype.tryToConvert = function(_var, type) {
+		var self = this;
+		
+		if(_var instanceof VString) {
+			return _var;
+		} else if(_.isString(_var)) {
+			_var = _const.getConstvalue(_var);
+			if(_.isUndefined(_var)) {
+				throw {
+					message: "unknown constant",
+					_var: _var
+				};
+			} else {
+				return self.tryToConvert(_var, type);
+			}
+		} else {
+			return _.convert(_var, type, function(_var, success) {
+				if(success) {
+					return _var;
+				} else {
+					throw {
+						message: "unknown type",
+						_var: _var
+					};
+				}
+			});
+		}
+			
+	};
+	
+	
+	
+		// pinToPORTMask
+	ATMEGA328P.prototype.pinToPORTMask = function(pin) {
+		var self	= this;
+		var fnc		= arguments.callee;
+	
+		pin = self.tryToConvert(pin, "number");
+		if(pin instanceof VString) {
+			return new VString("(1 << (" + pin.toString() + " % 8))");
+		} else {
+			if((0 <= pin) && (pin < 8)) {
+				return 1 << pin;
+			} else if((8 <= pin) && (pin < 14)) {
+				return 1 << (pin - 8);
+			} else if((16 <= pin) && (pin < 22)) {
+				return 1 << (pin - 16);
+			} else {
+				throw {
+					message: "unknow pin number",
+					pin: pin
+				};
+			}
+		}
+	};
+	
+	
+		// pinToPORT
+	ATMEGA328P.prototype.functions.push('pinToPORT');
+	ATMEGA328P.prototype.pinToPORT = function(pin) {
+		var self	= this;
+		var fnc		= arguments.callee;
+		
+		pin = self.tryToConvert(pin, "number");
+		if(pin instanceof VString) {
+			return new VString("*pinToPORTArray[" + pin.toString() + " / 8]");
+		} else {
+			if((0 <= pin) && (pin < 8)) {
+				return "PORTD";
+			} else if((8 <= pin) && (pin < 14)) {
+				return "PORTB";
+			} else if((16 <= pin) && (pin < 22)) {
+				return "PORTC";
+			} else {
+				throw {
+					message: "unknow pin number",
+					pin: pin
+				};
+			}
+		}
+	};
+	
+	ATMEGA328P.prototype.pinToPORT.cpp = "\r\n\t\tvolatile uint8_t * pinToPORTArray[] = { &PORTD, &PORTB, &PORTC }; // 6b in RAM, it's fine\r\n\t";
+	
+	
+	ATMEGA328P.prototype.digitalWrite = function(pin, state) {
+		var self = this;
+		
+		state = self.tryToConvert(state, "boolean");
+		if(state instanceof VString) {
+			return new VString(
+				"if(" + state.toString() + ") {" +
+					self.digitalWrite(pin, true) +
+				"} else {" +
+					self.digitalWrite(pin, false) +
+				"}"
+			);
+		} else {
+			if(state) {
+				return self.pinToPORT(pin).toString() + " |= " + self.convertNumberToByte(self.pinToPORTMask(pin)).toString() + ";";
+			} else {
+				return self.pinToPORT(pin).toString() + " &= " + self.convertNumberToByte(self.invert(self.pinToPORTMask(pin))).toString() + ";";
+			}
+		}
+	};
+	
+	var microcontroller = new ATMEGA328P();
+	
+	var raw = function(string) {
+		return new VString(string);
+	};$buffer.push("\r\n\r\n/*\r\nthree ways of writing the same function :\r\n\r\n\t\r\n\t" +  microcontroller.digitalWrite('D5', 'HIGH'));$buffer.push(" // giving D5 constant as a string\r\n\t" +  microcontroller.digitalWrite(_const.pins.D5, 'HIGH'));$buffer.push(" // giving D5 constant from the _const object\r\n\t" +  microcontroller.digitalWrite(5, 'HIGH'));$buffer.push(" // giving number 5 \r\n*/\r\n\r\n");
+	/**
+		Why UMPL is useful ? you'll see :
+	**/
+	
+		// we define constants here and not in the C++ code
+	var ledPin	= "D13";$buffer.push("\r\n\r\n\t// we need it a the beginning of our program to setup some functions\r\n" +  microcontroller.getCPPFunctions());$buffer.push("\r\n\r\n\r\n\t// the code inside of this function is strongly optimized\r\nvoid blink_fast() { // 2.4µs @8Mhz > 1.2µs / write\r\n\t" +  microcontroller.digitalWrite(ledPin, 'HIGH'));$buffer.push("\r\n\t" +  microcontroller.digitalWrite(ledPin, 'LOW'));$buffer.push("\r\n};\r\n\r\n\r\n#define LED_PIN 13\r\n\r\n\t// the code inside of this function is not optimized at the best because we use a C++ constant \r\nvoid blink_slow() { // 4.5µs @8Mhz > 2.3µs / write\r\n\t" +  microcontroller.digitalWrite(raw('LED_PIN'), raw('HIGH')));$buffer.push("\r\n\t" +  microcontroller.digitalWrite(raw('LED_PIN'), raw('LOW')));$buffer.push("\r\n};\r\n\r\n\t// the code inside of this function is the slowest, digitalWrite is provided by the Arduino IDE\r\nvoid blink_slower() { // 21.6µs @8Mhz  > 10.8µs / write\r\n\tdigitalWrite(LED_PIN, HIGH);\r\n\tdigitalWrite(LED_PIN, LOW);\r\n};\r\n\r\n\r\n/**\r\n\tThe following code can't be optimized by the c++ compiler, so it will only show the arduino.js optimizations\r\n**/\r\n\r\nvoid blink_fast_2() { // 94.7µs @8Mhz > 3.6µs / write\r\n\tfor(uint8_t i = 0; i < 13; i++) {\r\n\t\tfor(uint8_t j = 0; j < 2; j++) {\r\n\t\t\t" +  microcontroller.digitalWrite(raw('i'), raw('j')));$buffer.push("\r\n\t\t}\r\n\t}\r\n};\r\n\r\nvoid blink_slower_2() { // 309.2µs @8Mhz > 11.9µs / write\r\n\tfor(uint8_t i = 0; i < 13; i++) {\r\n\t\tfor(uint8_t j = 0; j < 2; j++) {\r\n\t\t\tdigitalWrite(i, j);\r\n\t\t}\r\n\t}\r\n};\r\n\r\n\r\n/**\r\n\tVerdict : if you use arduino.js methods instead of native Arduino IDE function,\r\n\tyou'll reduce a least the process time by 3.3 and at the best 9 times faster !\r\n**/\r\n\r\n\r\n\r\nuint32_t time_0;\r\nuint32_t time_1;\r\n\r\nvoid setup() {\r\n\tSerial.begin(115200);\r\n\t\r\n\t");
+
+		var exec_num = 10000;
+		['blink_fast', 'blink_slow', 'blink_slower', 'blink_fast_2', 'blink_slower_2'].forEach(function(fnc) {
+		$buffer.push("\r\n\t\t\t\r\n\t\t\t\ttime_0 = micros();\r\n\t\t\t\tfor(uint32_t i = 0; i < " +  exec_num);$buffer.push("; i++) {\r\n\t\t\t\t\t" +  fnc);$buffer.push("();\r\n\t\t\t\t}\r\n\t\t\t\t\r\n\t\t\t\ttime_1 = micros();\r\n\t\t\t\tSerial.print(\"" +  fnc);$buffer.push(" takes \");\r\n\t\t\t\tSerial.print(((float) (time_1 - time_0)) / " +  exec_num);$buffer.push(", DEC);\r\n\t\t\t\tSerial.println(\" microseconds\");\r\n\t\t\t");
+		});
+$buffer.push("\r\n\t\r\n\t" +  microcontroller.digitalWrite(ledPin, 'HIGH'));$buffer.push("\r\n\t" +  microcontroller.digitalWrite(ledPin, 'LOW'));$buffer.push("\r\n}\r\n\r\n\r\nvoid loop() {\r\n\t" +  microcontroller.digitalWrite(new VString('LED_PIN'), new VString('HIGH')));$buffer.push("\r\n\tdelay(100);\r\n\t" +  microcontroller.digitalWrite(new VString('LED_PIN'), new VString('LOW')));$buffer.push("\r\n\tdelay(100);\r\n}\r\n\r\n\r\n\t");

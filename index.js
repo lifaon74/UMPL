@@ -76,7 +76,7 @@ var compileFile = function(fileName, verbose) {
 
 	compiler.bind('execute_loop', function(code) {
 		if(verbose) {
-			fs.writeFileSync(compiledFolder + '/out_' + this.loop + '.txt', this.code.buffer, 'utf8');
+			fs.writeFileSync(compiledFolder + '/out_' + this.loop + '.txt', this.code.get(), 'utf8');
 		}
 	});
 

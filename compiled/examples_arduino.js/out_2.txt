@@ -1,3 +1,7 @@
+volatile uint8_t * pinToPORTArray[] = { &PORTD, &PORTB, &PORTC };
+
+volatile uint8_t * pinToPINArray[] = { &PIND, &PINB, &PINC };
+
 
 
 
@@ -14,12 +18,7 @@ three ways of writing the same function :
 
 
 
-	// we need it a the beginning of our program to setup some functions
-volatile uint8_t * pinToPORTArray[] = { &PORTD, &PORTB, &PORTC }; // 6b in RAM, it's fine
-
-
-
-
+	
 	// the code inside of this function is strongly optimized
 void blink_fast() { // 2.4µs @8Mhz > 1.2µs / write
 	PORTB |= B00100000;
@@ -71,71 +70,109 @@ void blink_slower_2() { // 309.2µs @8Mhz > 11.9µs / write
 
 
 
+
+void pinmode_fast() { // 2.3µs @8Mhz
+	DDRB |= B00100000;
+};
+
+
+void pinmode_slow() { // 10µs @8Mhz
+	pinMode(LED_PIN, OUTPUT);
+};
+
+
+
 uint32_t time_0;
 uint32_t time_1;
 
 void setup() {
 	Serial.begin(115200);
 	
+	/*Serial.println(INPUT, DEC);
+	Serial.println(INPUT_PULLUP, DEC);
+	Serial.println(OUTPUT, DEC);*/
+	
 	
 			
 				time_0 = micros();
-				for(uint32_t i = 0; i < 10000; i++) {
+				for(uint32_t i = 0; i < 1000; i++) {
 					blink_fast();
 				}
 				
 				time_1 = micros();
 				Serial.print("blink_fast takes ");
-				Serial.print(((float) (time_1 - time_0)) / 10000, DEC);
+				Serial.print(((float) (time_1 - time_0)) / 1000, DEC);
 				Serial.println(" microseconds");
 			
 			
 				time_0 = micros();
-				for(uint32_t i = 0; i < 10000; i++) {
+				for(uint32_t i = 0; i < 1000; i++) {
 					blink_slow();
 				}
 				
 				time_1 = micros();
 				Serial.print("blink_slow takes ");
-				Serial.print(((float) (time_1 - time_0)) / 10000, DEC);
+				Serial.print(((float) (time_1 - time_0)) / 1000, DEC);
 				Serial.println(" microseconds");
 			
 			
 				time_0 = micros();
-				for(uint32_t i = 0; i < 10000; i++) {
+				for(uint32_t i = 0; i < 1000; i++) {
 					blink_slower();
 				}
 				
 				time_1 = micros();
 				Serial.print("blink_slower takes ");
-				Serial.print(((float) (time_1 - time_0)) / 10000, DEC);
+				Serial.print(((float) (time_1 - time_0)) / 1000, DEC);
 				Serial.println(" microseconds");
 			
 			
 				time_0 = micros();
-				for(uint32_t i = 0; i < 10000; i++) {
+				for(uint32_t i = 0; i < 1000; i++) {
 					blink_fast_2();
 				}
 				
 				time_1 = micros();
 				Serial.print("blink_fast_2 takes ");
-				Serial.print(((float) (time_1 - time_0)) / 10000, DEC);
+				Serial.print(((float) (time_1 - time_0)) / 1000, DEC);
 				Serial.println(" microseconds");
 			
 			
 				time_0 = micros();
-				for(uint32_t i = 0; i < 10000; i++) {
+				for(uint32_t i = 0; i < 1000; i++) {
 					blink_slower_2();
 				}
 				
 				time_1 = micros();
 				Serial.print("blink_slower_2 takes ");
-				Serial.print(((float) (time_1 - time_0)) / 10000, DEC);
+				Serial.print(((float) (time_1 - time_0)) / 1000, DEC);
+				Serial.println(" microseconds");
+			
+			
+				time_0 = micros();
+				for(uint32_t i = 0; i < 1000; i++) {
+					pinmode_fast();
+				}
+				
+				time_1 = micros();
+				Serial.print("pinmode_fast takes ");
+				Serial.print(((float) (time_1 - time_0)) / 1000, DEC);
+				Serial.println(" microseconds");
+			
+			
+				time_0 = micros();
+				for(uint32_t i = 0; i < 1000; i++) {
+					pinmode_slow();
+				}
+				
+				time_1 = micros();
+				Serial.print("pinmode_slow takes ");
+				Serial.print(((float) (time_1 - time_0)) / 1000, DEC);
 				Serial.println(" microseconds");
 			
 	
-	PORTB |= B00100000;
-	PORTB &= B11011111;
+	DDRB |= B00100000;
+	DDRB &= B11111011;
 }
 
 
@@ -144,7 +181,12 @@ void loop() {
 	delay(100);
 	if(LOW) {*pinToPORTArray[LED_PIN / 8] |= (1 << (LED_PIN % 8));} else {*pinToPORTArray[LED_PIN / 8] &= ~((1 << (LED_PIN % 8)));}
 	delay(100);
+	
+	uint8_t i = 10;
+	Serial.println(((bool) (*pinToPINArray[i / 8] & (1 << (i % 8)))), DEC);
 }
+
+
 
 
 	

@@ -21,9 +21,15 @@ _const.microcontrollers = _.enumerate([
 	"ATMEGA32U4"
 ]);
 
+_const.pinMode = {
+	"INPUT"			: 0,
+	"OUTPUT"		: 1,
+	"INPUT_PULLUP"	: 2
+};
+
 _const.pinState = {
-	"HIGH"	: 1 ,
-	"LOW"	: 0
+	"LOW"	: 0,
+	"HIGH"	: 1 
 };
 
 
@@ -88,21 +94,8 @@ ATMEGA328P.prototype.getCPPFunctions = function() {
 		var fncName = self.functions[i];
 		var fnc = self[fncName];
 		
-		if(fnc.storeRAM) {
-			var values = "";
-			for(var j = 0; j < fnc.cppStore.size[0]; j++) {
-				if(j > 0) { values += ", "; }
-				var prefix = fnc.cppStore.prefix || "";
-				try {
-					values += prefix + fnc.apply(self, [j]);
-				} catch(error) {
-					values += "NULL";
-				}
-			}
-			
-			string += fnc.cppStore.type + " " + fncName + "Array[] = { " + values + "};\n\n";	
-		} else {
-			string += self[fncName].cpp.trim() + "\n\n";	
+		if(self[fncName].cpp.used) {
+			string += self[fncName].cpp.code.trim() + "\n\n";
 		}
 	}
 	
@@ -169,9 +162,8 @@ ATMEGA328P.prototype.tryToConvert = function(_var, type) {
 };
 
 
-
-	// pinToPORTMask
-ATMEGA328P.prototype.pinToPORTMask = function(pin) {
+	// _pinToIOMask
+ATMEGA328P.prototype._pinToIOMask = function(pin) {
 	var self	= this;
 	var fnc		= arguments.callee;
 
@@ -194,23 +186,22 @@ ATMEGA328P.prototype.pinToPORTMask = function(pin) {
 	}
 };
 
-
-	// pinToPORT
-ATMEGA328P.prototype.functions.push('pinToPORT');
-ATMEGA328P.prototype.pinToPORT = function(pin) {
+	// _pinToIOPort
+ATMEGA328P.prototype._pinToIOPort = function(pin, port, _function) {
 	var self	= this;
 	var fnc		= arguments.callee;
 	
 	pin = self.tryToConvert(pin, "number");
 	if(pin instanceof VString) {
-		return new VString("*pinToPORTArray[" + pin.toString() + " / 8]");
+		_function.cpp.used = true;
+		return new VString("*pinTo" + port + "Array[" + pin.toString() + " / 8]");
 	} else {
 		if((0 <= pin) && (pin < 8)) {
-			return "PORTD";
+			return port + "D";
 		} else if((8 <= pin) && (pin < 14)) {
-			return "PORTB";
+			return port + "B";
 		} else if((16 <= pin) && (pin < 22)) {
-			return "PORTC";
+			return port + "C";
 		} else {
 			throw {
 				message: "unknow pin number",
@@ -220,7 +211,70 @@ ATMEGA328P.prototype.pinToPORT = function(pin) {
 	}
 };
 
-ATMEGA328P.prototype.pinToPORT.cpp = "\r\n\tvolatile uint8_t * pinToPORTArray[] = { &PORTD, &PORTB, &PORTC }; // 6b in RAM, it's fine\r\n";
+
+/** pinMode **/
+	
+	// pinToDDRMask
+ATMEGA328P.prototype.pinToDDRMask = function(pin) {
+	return this._pinToIOMask(pin);
+};
+
+	// pinToDDR
+ATMEGA328P.prototype.functions.push('pinToDDR');
+ATMEGA328P.prototype.pinToDDR = function(pin) {
+	return this._pinToIOPort(pin, 'DDR', arguments.callee);
+};
+
+ATMEGA328P.prototype.pinToDDR.cpp = {
+	code: "\r\n\t\tvolatile uint8_t * pinToDDRArray[] = { &DDRD, &DDRB, &DDRC }; \r\n\t",
+	ram: 6, // 6b in RAM, it's fine
+	used: false
+};
+
+	
+ATMEGA328P.prototype.pinMode = function(pin, mode) {
+	var self = this;
+	
+	mode = self.tryToConvert(mode, "number");
+	if(mode instanceof VString) {
+		return new VString(
+			"\r\n\t\t\t\tswitch(" +  mode  + ") {\r\n\t\t\t\t\tcase " +  self._const.pinMode.INPUT  + " :\r\n\t\t\t\t\t\t" +  self.pinMode(pin, self._const.pinMode.INPUT)  + "\r\n\t\t\t\t\tbreak;\r\n\t\t\t\t\tcase " +  self._const.pinMode.OUTPUT  + " :\r\n\t\t\t\t\t\t" +  self.pinMode(pin, self._const.pinMode.OUTPUT)  + "\r\n\t\t\t\t\tbreak;\r\n\t\t\t\t\tcase " +  self._const.pinMode.INPUT_PULLUP  + " :\r\n\t\t\t\t\t\t" +  self.pinMode(pin, self._const.pinMode.INPUT_PULLUP)  + "\r\n\t\t\t\t\tbreak;\r\n\t\t\t\t}\r\n\t\t\t"
+		);
+	} else {
+		switch(mode) {
+			case self._const.pinMode.INPUT:
+				return self.pinToDDR(pin).toString() + " &= " + self.convertNumberToByte(self.invert(self.pinToDDRMask(pin))).toString() + ";";
+			break;
+			case self._const.pinMode.OUTPUT:
+				return self.pinToDDR(pin).toString() + " |= " + self.convertNumberToByte(self.pinToDDRMask(pin)).toString() + ";";
+			break;
+			case self._const.pinMode.INPUT_PULLUP:
+				return self.pinMode(pin, self._const.pinMode.INPUT) + " " + self.digitalWrite(pin, self._const.pinState.HIGH);
+			break;
+		}
+	}
+};
+
+
+/** digitalWrite **/
+
+	// pinToPORTMask
+ATMEGA328P.prototype.pinToPORTMask = function(pin) {
+	return this._pinToIOMask(pin);
+};
+
+
+	// pinToPORT
+ATMEGA328P.prototype.functions.push('pinToPORT');
+ATMEGA328P.prototype.pinToPORT = function(pin) {
+	return this._pinToIOPort(pin, 'PORT', arguments.callee);
+};
+
+ATMEGA328P.prototype.pinToPORT.cpp = {
+	code: "\r\n\t\tvolatile uint8_t * pinToPORTArray[] = { &PORTD, &PORTB, &PORTC };\r\n\t",
+	ram: 6,
+	used: false
+};
 
 
 /*
@@ -261,6 +315,34 @@ ATMEGA328P.prototype.digitalWrite = function(pin, state) {
 };
 
 
+/** digitalRead **/
+
+	// pinToPINMask
+ATMEGA328P.prototype.pinToPINMask = function(pin) {
+	return this._pinToIOMask(pin);
+};
+
+	// pinToPIN
+ATMEGA328P.prototype.functions.push('pinToPIN');
+ATMEGA328P.prototype.pinToPIN = function(pin) {
+	return this._pinToIOPort(pin, 'PIN', arguments.callee);
+};
+
+ATMEGA328P.prototype.pinToPIN.cpp = {
+	code: "\r\n\t\tvolatile uint8_t * pinToPINArray[] = { &PIND, &PINB, &PINC };\r\n\t",
+	ram: 6,
+	used: false
+};
+
+	
+ATMEGA328P.prototype.digitalRead = function(pin) {
+	var self = this;
+	return "((bool) (" + self.pinToPIN(pin).toString() + " & " + self.convertNumberToByte(self.pinToPINMask(pin)).toString() + "))";
+};
+
+
+
+
 $globals.ATMEGA328P = ATMEGA328P;
 
 	
@@ -273,14 +355,13 @@ $globals.ATMEGA328P = ATMEGA328P;
 		Why UMPL is useful ? you'll see :
 	**/
 	
-	
-	
-	
 		// we define constants here and not in the C++ code
-	var ledPin	= "D13";$buffer.push("\r\n\r\n\t// we need it a the beginning of our program to setup some functions\r\n" +  microcontroller.getCPPFunctions());$buffer.push("\r\n\r\n\r\n\t// the code inside of this function is strongly optimized\r\nvoid blink_fast() { // 2.4µs @8Mhz > 1.2µs / write\r\n\t" +  microcontroller.digitalWrite(ledPin, 'HIGH'));$buffer.push("\r\n\t" +  microcontroller.digitalWrite(ledPin, 'LOW'));$buffer.push("\r\n};\r\n\r\n\r\n#define LED_PIN 13\r\n\r\n\t// the code inside of this function is not optimized at the best because we use a C++ constant \r\nvoid blink_slow() { // 4.5µs @8Mhz > 2.3µs / write\r\n\t" +  microcontroller.digitalWrite(raw('LED_PIN'), raw('HIGH')));$buffer.push("\r\n\t" +  microcontroller.digitalWrite(raw('LED_PIN'), raw('LOW')));$buffer.push("\r\n};\r\n\r\n\t// the code inside of this function is the slowest, digitalWrite is provided by the Arduino IDE\r\nvoid blink_slower() { // 21.6µs @8Mhz  > 10.8µs / write\r\n\tdigitalWrite(LED_PIN, HIGH);\r\n\tdigitalWrite(LED_PIN, LOW);\r\n};\r\n\r\n\r\n/**\r\n\tThe following code can't be optimized by the c++ compiler, so it will only show the arduino.js optimizations.\r\n**/\r\n\r\nvoid blink_fast_2() { // 94.7µs @8Mhz > 3.6µs / write\r\n\tfor(uint8_t i = 0; i < 13; i++) {\r\n\t\tfor(uint8_t j = 0; j < 2; j++) {\r\n\t\t\t" +  microcontroller.digitalWrite(raw('i'), raw('j')));$buffer.push("\r\n\t\t}\r\n\t}\r\n};\r\n\r\nvoid blink_slower_2() { // 309.2µs @8Mhz > 11.9µs / write\r\n\tfor(uint8_t i = 0; i < 13; i++) {\r\n\t\tfor(uint8_t j = 0; j < 2; j++) {\r\n\t\t\tdigitalWrite(i, j);\r\n\t\t}\r\n\t}\r\n};\r\n\r\n\r\n/**\r\n\tVerdict : if you use arduino.js methods instead of native Arduino IDE function,\r\n\tyou'll reduce a least the process time by 3.3 and at the best 9 times faster !\r\n\tWorth it no ?\r\n**/\r\n\r\n\r\n\r\nuint32_t time_0;\r\nuint32_t time_1;\r\n\r\nvoid setup() {\r\n\tSerial.begin(115200);\r\n\t\r\n\t");
+	var ledPin	= "D13";$buffer.push("\r\n\r\n\t\r\n\t// the code inside of this function is strongly optimized\r\nvoid blink_fast() { // 2.4µs @8Mhz > 1.2µs / write\r\n\t" +  microcontroller.digitalWrite(ledPin, 'HIGH'));$buffer.push("\r\n\t" +  microcontroller.digitalWrite(ledPin, 'LOW'));$buffer.push("\r\n};\r\n\r\n\r\n#define LED_PIN 13\r\n\r\n\t// the code inside of this function is not optimized at the best because we use a C++ constant \r\nvoid blink_slow() { // 4.5µs @8Mhz > 2.3µs / write\r\n\t" +  microcontroller.digitalWrite(raw('LED_PIN'), raw('HIGH')));$buffer.push("\r\n\t" +  microcontroller.digitalWrite(raw('LED_PIN'), raw('LOW')));$buffer.push("\r\n};\r\n\r\n\t// the code inside of this function is the slowest, digitalWrite is provided by the Arduino IDE\r\nvoid blink_slower() { // 21.6µs @8Mhz  > 10.8µs / write\r\n\tdigitalWrite(LED_PIN, HIGH);\r\n\tdigitalWrite(LED_PIN, LOW);\r\n};\r\n\r\n\r\n/**\r\n\tThe following code can't be optimized by the c++ compiler, so it will only show the arduino.js optimizations.\r\n**/\r\n\r\nvoid blink_fast_2() { // 94.7µs @8Mhz > 3.6µs / write\r\n\tfor(uint8_t i = 0; i < 13; i++) {\r\n\t\tfor(uint8_t j = 0; j < 2; j++) {\r\n\t\t\t" +  microcontroller.digitalWrite(raw('i'), raw('j')));$buffer.push("\r\n\t\t}\r\n\t}\r\n};\r\n\r\nvoid blink_slower_2() { // 309.2µs @8Mhz > 11.9µs / write\r\n\tfor(uint8_t i = 0; i < 13; i++) {\r\n\t\tfor(uint8_t j = 0; j < 2; j++) {\r\n\t\t\tdigitalWrite(i, j);\r\n\t\t}\r\n\t}\r\n};\r\n\r\n\r\n/**\r\n\tVerdict : if you use arduino.js methods instead of native Arduino IDE function,\r\n\tyou'll reduce a least the process time by 3.3 and at the best 9 times faster !\r\n\tWorth it no ?\r\n**/\r\n\r\n\r\n\r\n\r\nvoid pinmode_fast() { // 2.3µs @8Mhz\r\n\t" +  microcontroller.pinMode(ledPin, 'OUTPUT'));$buffer.push("\r\n};\r\n\r\n\r\nvoid pinmode_slow() { // 10µs @8Mhz\r\n\tpinMode(LED_PIN, OUTPUT);\r\n};\r\n\r\n\r\n\r\nuint32_t time_0;\r\nuint32_t time_1;\r\n\r\nvoid setup() {\r\n\tSerial.begin(115200);\r\n\t\r\n\t/*Serial.println(INPUT, DEC);\r\n\tSerial.println(INPUT_PULLUP, DEC);\r\n\tSerial.println(OUTPUT, DEC);*/\r\n\t\r\n\t");
 
-		var exec_num = 10000;
-		['blink_fast', 'blink_slow', 'blink_slower', 'blink_fast_2', 'blink_slower_2'].forEach(function(fnc) {
+		var exec_num = 1000;
+		['blink_fast', 'blink_slow', 'blink_slower', 'blink_fast_2', 'blink_slower_2', 'pinmode_fast', 'pinmode_slow'].forEach(function(fnc) {
 		$buffer.push("\r\n\t\t\t\r\n\t\t\t\ttime_0 = micros();\r\n\t\t\t\tfor(uint32_t i = 0; i < " +  exec_num);$buffer.push("; i++) {\r\n\t\t\t\t\t" +  fnc);$buffer.push("();\r\n\t\t\t\t}\r\n\t\t\t\t\r\n\t\t\t\ttime_1 = micros();\r\n\t\t\t\tSerial.print(\"" +  fnc);$buffer.push(" takes \");\r\n\t\t\t\tSerial.print(((float) (time_1 - time_0)) / " +  exec_num);$buffer.push(", DEC);\r\n\t\t\t\tSerial.println(\" microseconds\");\r\n\t\t\t");
 		});
-$buffer.push("\r\n\t\r\n\t" +  microcontroller.digitalWrite(ledPin, 'HIGH'));$buffer.push("\r\n\t" +  microcontroller.digitalWrite(ledPin, 'LOW'));$buffer.push("\r\n}\r\n\r\n\r\nvoid loop() {\r\n\t" +  microcontroller.digitalWrite(raw('LED_PIN'), raw('HIGH')));$buffer.push("\r\n\tdelay(100);\r\n\t" +  microcontroller.digitalWrite(raw('LED_PIN'), raw('LOW')));$buffer.push("\r\n\tdelay(100);\r\n}\r\n\r\n\r\n\t");
+$buffer.push("\r\n\t\r\n\t" +  microcontroller.pinMode(ledPin, 'OUTPUT'));$buffer.push("\r\n\t" +  microcontroller.pinMode(10, 'INPUT'));$buffer.push("\r\n}\r\n\r\n\r\nvoid loop() {\r\n\t" +  microcontroller.digitalWrite(raw('LED_PIN'), raw('HIGH')));$buffer.push("\r\n\tdelay(100);\r\n\t" +  microcontroller.digitalWrite(raw('LED_PIN'), raw('LOW')));$buffer.push("\r\n\tdelay(100);\r\n\t\r\n\tuint8_t i = 10;\r\n\tSerial.println(" +  microcontroller.digitalRead(raw('i')));$buffer.push(", DEC);\r\n}\r\n\r\n\r\n");
+	// I'm injecting here the necessaries functions
+	$buffer.set(microcontroller.getCPPFunctions() + $buffer.toString());$buffer.push("\r\n\r\n\t");

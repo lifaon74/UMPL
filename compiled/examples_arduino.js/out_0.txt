@@ -27,17 +27,11 @@ three ways of writing the same function :
 		Why UMPL is useful ? you'll see :
 	**/
 	
-	
-	
-	
 		// we define constants here and not in the C++ code
 	var ledPin	= "D13";
 %>
 
-	// we need it a the beginning of our program to setup some functions
-<%= microcontroller.getCPPFunctions() %>
-
-
+	
 	// the code inside of this function is strongly optimized
 void blink_fast() { // 2.4µs @8Mhz > 1.2µs / write
 	<%= microcontroller.digitalWrite(ledPin, 'HIGH') %>
@@ -89,16 +83,32 @@ void blink_slower_2() { // 309.2µs @8Mhz > 11.9µs / write
 
 
 
+
+void pinmode_fast() { // 2.3µs @8Mhz
+	<%= microcontroller.pinMode(ledPin, 'OUTPUT') %>
+};
+
+
+void pinmode_slow() { // 10µs @8Mhz
+	pinMode(LED_PIN, OUTPUT);
+};
+
+
+
 uint32_t time_0;
 uint32_t time_1;
 
 void setup() {
 	Serial.begin(115200);
 	
+	/*Serial.println(INPUT, DEC);
+	Serial.println(INPUT_PULLUP, DEC);
+	Serial.println(OUTPUT, DEC);*/
+	
 	<%
 
-		var exec_num = 10000;
-		['blink_fast', 'blink_slow', 'blink_slower', 'blink_fast_2', 'blink_slower_2'].forEach(function(fnc) {
+		var exec_num = 1000;
+		['blink_fast', 'blink_slow', 'blink_slower', 'blink_fast_2', 'blink_slower_2', 'pinmode_fast', 'pinmode_slow'].forEach(function(fnc) {
 			%>
 			
 				time_0 = micros();
@@ -114,8 +124,8 @@ void setup() {
 		});
 	%>
 	
-	<%= microcontroller.digitalWrite(ledPin, 'HIGH') %>
-	<%= microcontroller.digitalWrite(ledPin, 'LOW') %>
+	<%= microcontroller.pinMode(ledPin, 'OUTPUT') %>
+	<%= microcontroller.pinMode(10, 'INPUT') %>
 }
 
 
@@ -124,7 +134,15 @@ void loop() {
 	delay(100);
 	<%= microcontroller.digitalWrite(raw('LED_PIN'), raw('LOW')) %>
 	delay(100);
+	
+	uint8_t i = 10;
+	Serial.println(<%= microcontroller.digitalRead(raw('i')) %>, DEC);
 }
 
+
+<%
+	// I'm injecting here the necessaries functions
+	$buffer.set(microcontroller.getCPPFunctions() + $buffer.toString());
+%>
 
 	

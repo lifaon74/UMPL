@@ -20,9 +20,15 @@ _const.microcontrollers = _.enumerate([
 	"ATMEGA32U4"
 ]);
 
+_const.pinMode = {
+	"INPUT"			: 0,
+	"OUTPUT"		: 1,
+	"INPUT_PULLUP"	: 2
+};
+
 _const.pinState = {
-	"HIGH"	: 1 ,
-	"LOW"	: 0
+	"LOW"	: 0,
+	"HIGH"	: 1 
 };
 
 
@@ -87,21 +93,8 @@ ATMEGA328P.prototype.getCPPFunctions = function() {
 		var fncName = self.functions[i];
 		var fnc = self[fncName];
 		
-		if(fnc.storeRAM) {
-			var values = "";
-			for(var j = 0; j < fnc.cppStore.size[0]; j++) {
-				if(j > 0) { values += ", "; }
-				var prefix = fnc.cppStore.prefix || "";
-				try {
-					values += prefix + fnc.apply(self, [j]);
-				} catch(error) {
-					values += "NULL";
-				}
-			}
-			
-			string += fnc.cppStore.type + " " + fncName + "Array[] = { " + values + "};\n\n";	
-		} else {
-			string += self[fncName].cpp.trim() + "\n\n";	
+		if(self[fncName].cpp.used) {
+			string += self[fncName].cpp.code.trim() + "\n\n";
 		}
 	}
 	
@@ -168,9 +161,8 @@ ATMEGA328P.prototype.tryToConvert = function(_var, type) {
 };
 
 
-
-	// pinToPORTMask
-ATMEGA328P.prototype.pinToPORTMask = function(pin) {
+	// _pinToIOMask
+ATMEGA328P.prototype._pinToIOMask = function(pin) {
 	var self	= this;
 	var fnc		= arguments.callee;
 
@@ -193,23 +185,22 @@ ATMEGA328P.prototype.pinToPORTMask = function(pin) {
 	}
 };
 
-
-	// pinToPORT
-ATMEGA328P.prototype.functions.push('pinToPORT');
-ATMEGA328P.prototype.pinToPORT = function(pin) {
+	// _pinToIOPort
+ATMEGA328P.prototype._pinToIOPort = function(pin, port, _function) {
 	var self	= this;
 	var fnc		= arguments.callee;
 	
 	pin = self.tryToConvert(pin, "number");
 	if(pin instanceof VString) {
-		return new VString("*pinToPORTArray[" + pin.toString() + " / 8]");
+		_function.cpp.used = true;
+		return new VString("*pinTo" + port + "Array[" + pin.toString() + " / 8]");
 	} else {
 		if((0 <= pin) && (pin < 8)) {
-			return "PORTD";
+			return port + "D";
 		} else if((8 <= pin) && (pin < 14)) {
-			return "PORTB";
+			return port + "B";
 		} else if((16 <= pin) && (pin < 22)) {
-			return "PORTC";
+			return port + "C";
 		} else {
 			throw {
 				message: "unknow pin number",
@@ -219,9 +210,86 @@ ATMEGA328P.prototype.pinToPORT = function(pin) {
 	}
 };
 
-ATMEGA328P.prototype.pinToPORT.cpp = =%>
-	volatile uint8_t * pinToPORTArray[] = { &PORTD, &PORTB, &PORTC }; // 6b in RAM, it's fine
-<% ;
+
+/** pinMode **/
+	
+	// pinToDDRMask
+ATMEGA328P.prototype.pinToDDRMask = function(pin) {
+	return this._pinToIOMask(pin);
+};
+
+	// pinToDDR
+ATMEGA328P.prototype.functions.push('pinToDDR');
+ATMEGA328P.prototype.pinToDDR = function(pin) {
+	return this._pinToIOPort(pin, 'DDR', arguments.callee);
+};
+
+ATMEGA328P.prototype.pinToDDR.cpp = {
+	code: =%>
+		volatile uint8_t * pinToDDRArray[] = { &DDRD, &DDRB, &DDRC }; 
+	<% ,
+	ram: 6, // 6b in RAM, it's fine
+	used: false
+};
+
+	
+ATMEGA328P.prototype.pinMode = function(pin, mode) {
+	var self = this;
+	
+	mode = self.tryToConvert(mode, "number");
+	if(mode instanceof VString) {
+		return new VString(
+			=%>
+				switch(<%= mode =%>) {
+					case <%= self._const.pinMode.INPUT =%> :
+						<%= self.pinMode(pin, self._const.pinMode.INPUT) =%>
+					break;
+					case <%= self._const.pinMode.OUTPUT =%> :
+						<%= self.pinMode(pin, self._const.pinMode.OUTPUT) =%>
+					break;
+					case <%= self._const.pinMode.INPUT_PULLUP =%> :
+						<%= self.pinMode(pin, self._const.pinMode.INPUT_PULLUP) =%>
+					break;
+				}
+			<%
+		);
+	} else {
+		switch(mode) {
+			case self._const.pinMode.INPUT:
+				return self.pinToDDR(pin).toString() + " &= " + self.convertNumberToByte(self.invert(self.pinToDDRMask(pin))).toString() + ";";
+			break;
+			case self._const.pinMode.OUTPUT:
+				return self.pinToDDR(pin).toString() + " |= " + self.convertNumberToByte(self.pinToDDRMask(pin)).toString() + ";";
+			break;
+			case self._const.pinMode.INPUT_PULLUP:
+				return self.pinMode(pin, self._const.pinMode.INPUT) + " " + self.digitalWrite(pin, self._const.pinState.HIGH);
+			break;
+		}
+	}
+};
+
+
+/** digitalWrite **/
+
+	// pinToPORTMask
+ATMEGA328P.prototype.pinToPORTMask = function(pin) {
+	return this._pinToIOMask(pin);
+};
+
+
+	// pinToPORT
+ATMEGA328P.prototype.functions.push('pinToPORT');
+ATMEGA328P.prototype.pinToPORT = function(pin) {
+	return this._pinToIOPort(pin, 'PORT', arguments.callee);
+};
+
+ATMEGA328P.prototype.pinToPORT.cpp = {
+	code: =%>
+		volatile uint8_t * pinToPORTArray[] = { &PORTD, &PORTB, &PORTC };
+	<% ,
+	ram: 6,
+	used: false
+};
 
 
 /*
@@ -260,6 +328,36 @@ ATMEGA328P.prototype.digitalWrite = function(pin, state) {
 		}
 	}
 };
+
+
+/** digitalRead **/
+
+	// pinToPINMask
+ATMEGA328P.prototype.pinToPINMask = function(pin) {
+	return this._pinToIOMask(pin);
+};
+
+	// pinToPIN
+ATMEGA328P.prototype.functions.push('pinToPIN');
+ATMEGA328P.prototype.pinToPIN = function(pin) {
+	return this._pinToIOPort(pin, 'PIN', arguments.callee);
+};
+
+ATMEGA328P.prototype.pinToPIN.cpp = {
+	code: =%>
+		volatile uint8_t * pinToPINArray[] = { &PIND, &PINB, &PINC };
+	<% ,
+	ram: 6,
+	used: false
+};
+
+	
+ATMEGA328P.prototype.digitalRead = function(pin) {
+	var self = this;
+	return "((bool) (" + self.pinToPIN(pin).toString() + " & " + self.convertNumberToByte(self.pinToPINMask(pin)).toString() + "))";
+};
+
+
 
 
 $globals.ATMEGA328P = ATMEGA328P;

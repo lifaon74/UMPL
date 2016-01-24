@@ -22,4 +22,27 @@ var fileName = "examples/arduino.js";
 //var fileName = "examples/const.js";
 //var fileName = "examples/buffer.js";
 
-UMPLCompiler.compileFile(fileName, 'compiled/examples_arduino.js/examples_arduino.js.ino', true);
+
+var lastUpdate = 0;
+var daemon = function() {
+	fs.stat(fileName, function(error, stats) {
+	
+		if(error) {
+			throw error;
+		}
+		
+		var mtime = new Date(stats.mtime).getTime();
+	
+		if(mtime > lastUpdate) {
+			lastUpdate = mtime;
+			UMPLCompiler.compileFile(fileName, 'compiled/examples_arduino.js/examples_arduino.js.ino', true);
+		}
+
+	
+		//setTimeout(daemon, 250);
+	});
+};
+
+daemon();
+
+

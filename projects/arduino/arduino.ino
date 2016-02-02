@@ -1,6 +1,11 @@
 volatile uint8_t * pinToPORTArray[] = { &PORTD, &PORTB, &PORTC };
 
-volatile uint8_t * pinToPINArray[] = { &PIND, &PINB, &PINC };
+uint16_t _analogRead(uint8_t pinMask) {
+			ADMUX = (ADMUX & B11110000) | pinMask;
+			ADCSRA |= B01000000;
+			while(((bool) (ADCSRA & B01000000)));
+			return (ADCL | (ADCH << 8));
+		};
 
 
 
@@ -11,13 +16,14 @@ volatile uint8_t * pinToPINArray[] = { &PIND, &PINB, &PINC };
 three ways of writing the same function :
 
 	
-	PORTD |= B00100000; // giving D5 constant as a string
-	PORTD |= B00100000; // giving D5 constant from the _const object
-	PORTD |= B00100000; // giving number 5 
+	PORTD |= B00100000 // giving D5 constant as a string
+	PORTD |= B00100000 // giving D5 constant from the _const object
+	PORTD |= B00100000 // giving number 5 
 */
 
 
 
+	
 	
 	// the code inside of this function is strongly optimized
 void blink_fast() { // 2.4µs @8Mhz > 1.2µs / write
@@ -28,10 +34,10 @@ void blink_fast() { // 2.4µs @8Mhz > 1.2µs / write
 
 #define LED_PIN 13
 
-	// the code inside of this function is not optimized at the best because we use a C++ constant 
+	// the code inside of this function is optimized at it's maximum, be we could do better without using C++ constants
 void blink_slow() { // 4.5µs @8Mhz > 2.3µs / write
-	if(HIGH) {*pinToPORTArray[LED_PIN / 8] |= (1 << (LED_PIN % 8));} else {*pinToPORTArray[LED_PIN / 8] &= ~((1 << (LED_PIN % 8)));}
-	if(LOW) {*pinToPORTArray[LED_PIN / 8] |= (1 << (LED_PIN % 8));} else {*pinToPORTArray[LED_PIN / 8] &= ~((1 << (LED_PIN % 8)));}
+	((HIGH) ? (*pinToPORTArray[LED_PIN / 8] |= (1 << (LED_PIN % 8))) : (*pinToPORTArray[LED_PIN / 8] &= ~((1 << (LED_PIN % 8)))));
+	((LOW) ? (*pinToPORTArray[LED_PIN / 8] |= (1 << (LED_PIN % 8))) : (*pinToPORTArray[LED_PIN / 8] &= ~((1 << (LED_PIN % 8)))));
 };
 
 	// the code inside of this function is the slowest, digitalWrite is provided by the Arduino IDE
@@ -48,7 +54,7 @@ void blink_slower() { // 21.6µs @8Mhz  > 10.8µs / write
 void blink_fast_2() { // 94.7µs @8Mhz > 3.6µs / write
 	for(uint8_t i = 0; i < 13; i++) {
 		for(uint8_t j = 0; j < 2; j++) {
-			if(j) {*pinToPORTArray[i / 8] |= (1 << (i % 8));} else {*pinToPORTArray[i / 8] &= ~((1 << (i % 8)));}
+			((j) ? (*pinToPORTArray[i / 8] |= (1 << (i % 8))) : (*pinToPORTArray[i / 8] &= ~((1 << (i % 8)))));
 		}
 	}
 };
@@ -172,18 +178,27 @@ void setup() {
 			
 	
 	DDRB |= B00100000;
-	DDRB &= B11111011;
+	
+	ADMUX = (ADMUX & B00111111) | B01000000;	
+	ADMUX &= B11011111;
+	ADCSRA = (ADCSRA & B11111000) | B00000100;	
+	Serial.println(_analogRead(B00100000), DEC);	
+	
+
+	/* SPI.begin() */
+SREG &= B01111111;
+PORTB |= B00000100;
+DDRB |= 44;
+SPCR |= B01010000;
+SREG |= B10000000;
+	
 }
 
-
 void loop() {
-	if(HIGH) {*pinToPORTArray[LED_PIN / 8] |= (1 << (LED_PIN % 8));} else {*pinToPORTArray[LED_PIN / 8] &= ~((1 << (LED_PIN % 8)));}
+	((HIGH) ? (*pinToPORTArray[LED_PIN / 8] |= (1 << (LED_PIN % 8))) : (*pinToPORTArray[LED_PIN / 8] &= ~((1 << (LED_PIN % 8)))));
 	delay(100);
-	if(LOW) {*pinToPORTArray[LED_PIN / 8] |= (1 << (LED_PIN % 8));} else {*pinToPORTArray[LED_PIN / 8] &= ~((1 << (LED_PIN % 8)));}
+	((LOW) ? (*pinToPORTArray[LED_PIN / 8] |= (1 << (LED_PIN % 8))) : (*pinToPORTArray[LED_PIN / 8] &= ~((1 << (LED_PIN % 8)))));
 	delay(100);
-	
-	uint8_t i = 10;
-	Serial.println(((bool) (*pinToPINArray[i / 8] & (1 << (i % 8)))), DEC);
 }
 
 

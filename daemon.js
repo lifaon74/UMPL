@@ -1,7 +1,7 @@
-var umpl_compiler	= require('umpl_compiler');
-var tools			= require('tools');
-var exec			= require('child_process').exec;
-
+var recursive_regexp	= require('recursive_regexp');
+var tools				= require('tools');
+var exec				= require('child_process').exec;
+var fs					= tools.fs;
 
 var projectPath = 'projects/arduino';
 var outputFile 	= 'arduino.ino';
@@ -69,11 +69,28 @@ Daemon.prototype.inspect = function() {
 var daemon = new Daemon(projectPath, excludeList, function() {
 	var cmd = 'node compiler.js in=' + this.rootPath + 'main.js out=' + this.rootPath + 'arduino.ino verbose=true';
 	exec(cmd, function(error, stdout, stderr) {
-		if(error) {
-			console.log(error.message);
-		} else {
-			var result = JSON.parse(stdout);
-			console.log('File compiled with success. Ouput in ' + result.outputFilePath);
+		var result = JSON.parse(stdout);
+		
+		switch(result.status) {
+			case 'OK':
+				console.log('File compiled with success : ' + result.outputFilePath);
+				return;
+			break;
+			case 'ERROR':
+				if(!result.catched) {
+					if(match = (new RegExp('([\\d]+)\\r?\\n', 'g')).match(stderr)) { // we have a lineNumber !
+						var lineNumber = parseInt(match.variables[0]) - 1;
+						result.error.formatedString = "[ERROR (" + result.error.name + ")] ( line : " + lineNumber +  " ) loop " + result.error.loop + ": " + result.error.message;
+					} else {
+						console.log("UNCATCHED ERROR", stderr);
+					}
+
+				}
+				
+				console.log(result.error.formatedString);
+			break;
+			default:
+				console.log("UNCATCHED ERROR", stderr);
 		}
 	});
 });

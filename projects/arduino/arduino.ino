@@ -12,6 +12,7 @@ uint16_t _analogRead(uint8_t pinMask) {
 
 
 
+
 /*
 three ways of writing the same function :
 

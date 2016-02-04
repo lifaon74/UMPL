@@ -66,6 +66,10 @@ var getFormatedArguments = function() {
 
 }
 
+var out = function(obj) {
+	console.log(JSON.stringify(obj));
+};
+
 var compile = function() {
 	var options = getFormatedArguments();
 	
@@ -102,15 +106,38 @@ var compile = function() {
 	
 	
 	compiler.bind('compile_error', function(error) {
-		throw error.originalError;
+		switch(error.name) {
+			case 'ParseError':
+			case 'ExecError':
+				out({
+					status: 'ERROR',
+					catched: true,
+					error: error
+				});
+			break;
+			default:
+				out({
+					status: 'ERROR',
+					catched: false,
+					error: {
+						name: error.name,
+						message: error.message,
+						stack: error.stack,
+						context: error.context,
+						loop: error.loop
+					}
+				});
+				
+				throw error;		
+		}
 	});
 	
 	compiler.bind('compiled', function(outputCode) {
 		fs.writeFileSync(outputFilePath, outputCode.toString(), 'utf8');
-		console.log(JSON.stringify({
-			succes: true,
+		out({
+			status: 'OK',
 			outputFilePath: outputFilePath
-		}));
+		});
 	});
 	
 	compiler.compile(inputCode, {

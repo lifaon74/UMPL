@@ -1,11 +1,11 @@
 ##Universal Meta Programming Language (UMPL)##
 This project enable powerfull code preprocessing for any languages simply by adding a set a tags. This way it's possible to **strongly optimize program**, and even create **self-programming software**. This project is inspired from PHP and ASP.NET, but go further.
 
-*current version :* **0.9.2** (work in progress, functional)
+*current version :* **1.0.0**
 
 ###Install and test :
 Download the lib from github, open a console and type :
-```node index.js```
+```node daemon.js```
 
 ###Syntax :
 UMPL works with *every language*. It's an overlay which add tags and preprocess everything bettween them. Inside of these tags, you write **javascript (node.js)** code.
@@ -47,6 +47,10 @@ Hello world !
 
 ####Equal :
 
+- ```=%>``` to convert following raw text into js string. Usefull to get a sublevel code as a string.
+- ```<%=``` to write following javascript code directly. Faster than writing $buffer.push.
+
+#####Chaining :
 - ```=%> txt <%= js =%>``` :  will be converted into ```txt + " + " + js + " + "```, can be read as -- convert "txt" in javascript string, append "js" string, and append next raw text --
 - ```=%> txt <%= js %>``` :  is invalid
 - ```=%> txt <% js [tag]``` : will be converted into ```txt + js```, can be read as -- convert "txt" in javascript string, then do whats' you want with your js code --
@@ -54,13 +58,17 @@ Hello world !
 - ```%> txt <%= js %>``` :  will be converted into ```"$buffer.push(" + txt + " + " + js + ");"```, can be read as -- convert "txt" in javascript string, and append your js code, then write both into the out buffer --
 - ```%> txt <% js [tag]``` :  will be converted into ```"$buffer.push(" + txt + ");" + js```, can be read as -- convert "txt" in javascript string, write it into the buffer, then do whats' you want with your js code --
 
-**To sum up:** 
 
-- ```=%>``` to convert following raw text into js string
-- ```<%=``` to write following javascript code directly
+####Global variables :
+Global variables are available on every loops, and help developpers to control the compilation process.
 
-####Control process :
-```$compiler``` will give you a set of methods to control the execution of the preprocessing compilation.
+```$buffer``` : this is a VString object which contains all the code generated on the current loop.
+
+```$globals``` : this object must be used to store variables working on different level. Its components will not change or be erased between each loops.
+
+```$dirname``` :  equivalent to __dirname
+
+```$compiler``` : give you a set of methods to control the execution of the preprocessing compilation.
 
 - ```$compiler.loop``` : tells you on which loop you are.
 - ```$compiler.level``` : tells you on which level you are (according to tag nesting).
@@ -70,6 +78,16 @@ Hello world !
 	- event: 'execute_loop', argument: code: triggered every loop, just after the execution of the previous javascript code. **code** gives you the raw output.
 	- event: 'compiled', argument: outputCode: triggered at the end of the compilation. **outputCode** gives you the final output.
 
+```$scope``` :  this object contains all global variables and can generate others. For example, if you need to have ```fs``` on every loop, you can do :
+```
+<%+100 // lvl 100
+var fs = require('fs');
+$scope['fs'] = fs;
+%>
+<% // lvl 1
+	fs is available here
+%>
+```
 
 
 ###Examples :

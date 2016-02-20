@@ -11,6 +11,8 @@ Download the lib from github, open a console and type :
 UMPL works with *every language*. It's an overlay which add tags and preprocess everything bettween them. Inside of these tags, you write **javascript (node.js)** code.
 The force come from the fact that you can add tags *inside* of others tags : so it's possible to generate code for sublevels and do a lot of preprocessing for strong optimization. The compiler will then start with the higher level (depending of tag nesting), and execute as many loops as necessary until nothing remains to be compiled.
 
+![Compilation Process](readme_files/compilation_process.png)
+
 ####Nesting :
 - ```<% some javascript code %>``` : everything beetween these tags will be preprocessed. It's possible to nest these tags : 
 ```

@@ -1,5 +1,5 @@
 ##Universal Meta Programming Language (UMPL)##
-This project enable powerfull code preprocessing for any languages simply by adding a set a tags. This way it's possible to **strongly optimize program**, and even create **self-programming software**. This project is inspired from PHP and ASP.NET, but go further.
+This project enable powerful code preprocessing for any languages simply by adding a set a tags. This way it's possible to **strongly optimize program**, and even create **self-programming software**. This project is inspired from PHP and ASP.NET, but go further.
 
 *current version :* **1.0.0**
 
@@ -8,13 +8,13 @@ Download the lib from github, open a console and type :
 ```node daemon.js```
 
 ###Syntax :
-UMPL works with *every language*. It's an overlay which add tags and preprocess everything bettween them. Inside of these tags, you write **javascript (node.js)** code.
-The force come from the fact that you can add tags *inside* of others tags : so it's possible to generate code for sublevels and do a lot of preprocessing for strong optimization. The compiler will then start with the higher level (depending of tag nesting), and execute as many loops as necessary until nothing remains to be compiled.
+UMPL works with *every language*. It's an overlay which add tags and preprocess everything between them. Inside of these tags, you write **javascript (node.js)** code.
+The force come from the fact that you can add tags *inside* of others tags : so it's possible to generate code for sub-levels and do a lot of preprocessing for strong optimization. The compiler will then start with the higher level (depending of tag nesting), and execute as many loops as necessary until nothing remains to be compiled.
 
 ![Compilation Process](readme_files/compilation_process.png)
 
 ####Nesting :
-- ```<% some javascript code %>``` : everything beetween these tags will be preprocessed. It's possible to nest these tags : 
+- ```<% some javascript code %>``` : everything between these tags will be preprocessed. It's possible to nest these tags : 
 ```
 <%
 	some code executed on the second loop
@@ -35,10 +35,10 @@ The force come from the fact that you can add tags *inside* of others tags : so 
 
 ####Escape :
 - ```<%#``` : escape the open tag. Will result in ```<%```
-- ```#%>``` : escape the closetag. Will result in ```%>```
+- ```#%>``` : escape the close tag. Will result in ```%>```
 
 ####Write some data :
-- ```$buffer.push(data)``` :  everything written into the buffer, will be print into the sublevel.
+- ```$buffer.push(data)``` :  everything written into the buffer, will be print into the sub-level.
 ```
 <% $buffer.push("Hello world !"); %>
 ```
@@ -49,7 +49,7 @@ Hello world !
 
 ####Equal :
 
-- ```=%>``` to convert following raw text into js string. Usefull to get a sublevel code as a string.
+- ```=%>``` to convert following raw text into js string. Useful to get a sub-level code as a string.
 - ```<%=``` to write following javascript code directly. Faster than writing $buffer.push.
 
 #####Chaining :
@@ -62,7 +62,7 @@ Hello world !
 
 
 ####Global variables :
-Global variables are available on every loops, and help developpers to control the compilation process.
+Global variables are available on every loops, and help developers to control the compilation process.
 
 ```$buffer``` : this is a VString object which contains all the code generated on the current loop.
 
@@ -74,7 +74,7 @@ Global variables are available on every loops, and help developpers to control t
 
 - ```$compiler.loop``` : tells you on which loop you are.
 - ```$compiler.level``` : tells you on which level you are (according to tag nesting).
-- ```$compiler.bind(eventName, callback)``` : listen for an incomming event.
+- ```$compiler.bind(eventName, callback)``` : listen for an incoming event.
 	- event: 'compile_error', argument: error : triggered when an error occurs. **error** gives you mores informations about the problem.
 	-  event: 'parse_loop', argument: jsCode: triggered every loop, just after the conversion from UMPL file into an executable javascript file. **jsCode** gives you the raw javacript code.
 	- event: 'execute_loop', argument: code: triggered every loop, just after the execution of the previous javascript code. **code** gives you the raw output.
@@ -111,4 +111,4 @@ var f = function () {
 ```
 You will result in a pure recursive code generation (and an infinite loop by the way ;) , that's why I stop at 1000).
 
-***Next comming soon...***
+***Next coming soon...***

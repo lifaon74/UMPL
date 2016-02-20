@@ -7,11 +7,10 @@
 		}
 	});
 	
-	var fs = require('fs');
 	var tools = require('tools');
 		// use $scope to have the variable _ on all the following loops, this way, it's possible to require just one time 'tools'
 	$scope['_'] = tools._;
-	$scope['fs'] = fs;
+	$scope['fs'] = tools.fs;
 %>
 
 
@@ -45,7 +44,7 @@ three ways of writing the same function :
 	**/
 	
 		// we define constants here and not in the C++ code
-	var ledPin	= "D13";
+	var ledPin	= "D10";
 %>
 	
 	

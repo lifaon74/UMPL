@@ -96,11 +96,13 @@ var compile = function() {
 		fs.mkdir(debugFolder);
 	
 		compiler.bind('parse_loop', function(jsCode) {
-			fs.writeFileSync(debugFolder + 'out_' + this.loop + '.js', this.jsCode.toString(), 'utf8');
+			//fs.writeFileSync(debugFolder + path.fileName(inputFilePath) + '_' + this.loop + '.js', this.jsCode.toString(), 'utf8');
+			fs.writeFile(debugFolder + path.fileName(inputFilePath) + '_' + this.loop + '.js', this.jsCode.toString(), 'utf8', function() {});
 		});
 
 		compiler.bind('execute_loop', function(code) {
-			fs.writeFileSync(debugFolder + 'out_' + this.loop + '.txt', this.code.toString(), 'utf8');
+			//fs.writeFileSync(debugFolder + path.fileName(inputFilePath) + '_' + this.loop + '.txt', this.code.toString(), 'utf8');
+			fs.writeFile(debugFolder + path.fileName(inputFilePath) + '_' + this.loop + '.txt', this.code.toString(), 'utf8', function() {});
 		});
 	}
 	
@@ -136,7 +138,8 @@ var compile = function() {
 		fs.writeFileSync(outputFilePath, outputCode.toString(), 'utf8');
 		out({
 			status: 'OK',
-			outputFilePath: outputFilePath
+			outputFilePath: outputFilePath,
+			inputFilePath: inputFilePath
 		});
 	});
 	

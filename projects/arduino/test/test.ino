@@ -28,8 +28,8 @@ three ways of writing the same function :
 	
 	// the code inside of this function is strongly optimized
 void blink_fast() { // 2.4µs @8Mhz > 1.2µs / write
-	PORTB |= B00100000;
-	PORTB &= B11011111;
+	PORTB |= B00000100;
+	PORTB &= B11111011;
 };
 
 
@@ -79,7 +79,7 @@ void blink_slower_2() { // 309.2µs @8Mhz > 11.9µs / write
 
 
 void pinmode_fast() { // 2.3µs @8Mhz
-	DDRB |= B00100000;
+	DDRB |= B00000100;
 };
 
 
@@ -178,7 +178,7 @@ void setup() {
 				Serial.println(" microseconds");
 			
 	
-	DDRB |= B00100000;
+	DDRB |= B00000100;
 	
 	ADMUX = (ADMUX & B00111111) | B01000000;	
 	ADMUX &= B11011111;

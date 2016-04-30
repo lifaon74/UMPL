@@ -7,7 +7,7 @@ var fs					= tools.fs;
 var path 				= tools.path;
 var UMPLCompiler		= umpl_compiler.UMPLCompiler;
 
-// node compiler.js in=projects/arduino/main.js out=projects/arduino/arduino.ino verbose=true
+// node-debug compiler.js in=projects/arduino/stepper_esp.umpl out=projects/arduino/arduino.ino verbose=true
 
 
 var getCommandArguments = function() {
@@ -92,17 +92,21 @@ var compile = function() {
 	if(options.verbose) {
 		var debugFolder = options.debug || path.norm(inputFileFolder + 'debug', true);
 		
-		fs.recursiveRemove(debugFolder);
-		fs.mkdir(debugFolder);
+		var _return = fs.recursiveRemove(debugFolder);
+		if(!_return) {
+			// uncatched error
+		}
+		
+		fs.mkdirSync(debugFolder);
 	
 		compiler.bind('parse_loop', function(jsCode) {
 			//fs.writeFileSync(debugFolder + path.fileName(inputFilePath) + '_' + this.loop + '.js', this.jsCode.toString(), 'utf8');
-			fs.writeFile(debugFolder + path.fileName(inputFilePath) + '_' + this.loop + '.js', this.jsCode.toString(), 'utf8', function() {});
+			fs.writeFileSync(debugFolder + path.fileName(inputFilePath) + '_' + this.loop + '.js', this.jsCode.toString(), 'utf8');
 		});
 
 		compiler.bind('execute_loop', function(code) {
 			//fs.writeFileSync(debugFolder + path.fileName(inputFilePath) + '_' + this.loop + '.txt', this.code.toString(), 'utf8');
-			fs.writeFile(debugFolder + path.fileName(inputFilePath) + '_' + this.loop + '.txt', this.code.toString(), 'utf8', function() {});
+			fs.writeFileSync(debugFolder + path.fileName(inputFilePath) + '_' + this.loop + '.txt', this.code.toString(), 'utf8');
 		});
 	}
 	

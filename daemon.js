@@ -58,8 +58,11 @@ var daemon = new Daemon(projectPath, function(_path) {
 			try {
 				var result = JSON.parse(stdout);
 			} catch(error) {
-				console.log(error, stdout, stderr);
-				throw 'end';
+			//.replace(/\\n/g, '\n')
+				console.log('Compiler encountered an internal error : ');
+				console.log(/*error, */stdout, stderr);
+				//throw 'end';
+				return;
 			}
 			switch(result.status) {
 				case 'OK':
@@ -77,7 +80,9 @@ var daemon = new Daemon(projectPath, function(_path) {
 
 					}
 					
-					console.log(result.error.formatedString);
+					//console.log(result.error.formatedString);
+					console.log(_path);
+					console.log(result.error);
 				break;
 				default:
 					console.log("UNCATCHED ERROR", stderr);

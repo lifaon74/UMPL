@@ -1,0 +1,67 @@
+{
+  "_args": [
+    [
+      "umpl_compiler",
+      "E:\\Bit Sync\\Workspace\\Web\\Node"
+    ]
+  ],
+  "_from": "umpl_compiler@*",
+  "_id": "umpl_compiler@1.1.1",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/umpl_compiler",
+  "_nodeVersion": "5.2.0",
+  "_npmOperationalInternal": {
+    "host": "packages-16-east.internal.npmjs.com",
+    "tmp": "tmp/umpl_compiler-1.1.1.tgz_1463594173052_0.9680671084206551"
+  },
+  "_npmUser": {
+    "email": "contact@valentin-richard.com",
+    "name": "lifaon74"
+  },
+  "_npmVersion": "3.3.12",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "umpl_compiler",
+    "raw": "umpl_compiler",
+    "rawSpec": "",
+    "scope": null,
+    "spec": "*",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "#USER"
+  ],
+  "_shasum": "e51bade5dbc5d0041fc97b606c2323b451804c8d",
+  "_shrinkwrap": null,
+  "_spec": "umpl_compiler",
+  "_where": "E:\\Bit Sync\\Workspace\\Web\\Node",
+  "author": "",
+  "bin": {
+    "umplc": "./bin/compiler.js"
+  },
+  "dependencies": {
+    "linked_list": "latest",
+    "regexp_utils": "latest",
+    "visibility_string": "latest"
+  },
+  "description": "",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "e51bade5dbc5d0041fc97b606c2323b451804c8d",
+    "tarball": "https://registry.npmjs.org/umpl_compiler/-/umpl_compiler-1.1.1.tgz"
+  },
+  "license": "ISC",
+  "main": "lib/umpl_compiler.js",
+  "maintainers": [
+    {
+      "name": "lifaon74",
+      "email": "contact@valentin-richard.com"
+    }
+  ],
+  "name": "umpl_compiler",
+  "optionalDependencies": {},
+  "scripts": {},
+  "version": "1.1.8"
+}

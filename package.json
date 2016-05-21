@@ -46,6 +46,10 @@
     "visibility_string": "latest"
   },
   "description": "",
+  "repository" : {
+    "type" : "git",
+    "url" : "https://github.com/lifaon74/UMPL"
+  },
   "devDependencies": {},
   "directories": {},
   "dist": {
